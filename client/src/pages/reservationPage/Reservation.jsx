@@ -1,17 +1,56 @@
-import React from "react";
+import React, { useState } from "react";
+import axios from "axios";
 
 export default function Reservation() {
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    facility: "",
+    startTime: "",
+    endTime: "",
+  });
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.post("http://localhost:8080/api/reservations", formData);
+      alert("Reservation submitted successfully");
+      setFormData({
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        facility: "",
+        startTime: "",
+        endTime: "",
+      });
+    } catch (error) {
+      alert("Error submitting reservation: " + error.message);
+    }
+  };
+
   return (
     <div>
       <section>
         <h2>Vyplňte formulár pre rezerváciu</h2>
-        <form action="#" method="post">
+        <form onSubmit={handleSubmit}>
           <label htmlFor="first-name">Meno:</label>
           <input
             type="text"
             id="first-name"
-            name="first-name"
-            placeholder="Vaše meno"
+            name="firstName"
+            value={formData.firstName}
+            onChange={handleChange}
             required
           />
 
@@ -19,8 +58,9 @@ export default function Reservation() {
           <input
             type="text"
             id="last-name"
-            name="last-name"
-            placeholder="Vaše priezvisko"
+            name="lastName"
+            value={formData.lastName}
+            onChange={handleChange}
             required
           />
 
@@ -29,7 +69,8 @@ export default function Reservation() {
             type="email"
             id="email"
             name="email"
-            placeholder="Váš email"
+            value={formData.email}
+            onChange={handleChange}
             required
           />
 
@@ -38,12 +79,19 @@ export default function Reservation() {
             type="tel"
             id="phone"
             name="phone"
-            placeholder="Váš telefón"
+            value={formData.phone}
+            onChange={handleChange}
             required
           />
 
           <label htmlFor="facility">Zariadenie:</label>
-          <select id="facility" name="facility" defaultValue="" required>
+          <select
+            id="facility"
+            name="facility"
+            value={formData.facility}
+            onChange={handleChange}
+            required
+          >
             <option value="" disabled>
               Vyberte zariadenie
             </option>
@@ -56,12 +104,21 @@ export default function Reservation() {
           <input
             type="datetime-local"
             id="start-time"
-            name="start-time"
+            name="startTime"
+            value={formData.startTime}
+            onChange={handleChange}
             required
           />
 
           <label htmlFor="end-time">Čas konca rezervácie:</label>
-          <input type="datetime-local" id="end-time" name="end-time" required />
+          <input
+            type="datetime-local"
+            id="end-time"
+            name="endTime"
+            value={formData.endTime}
+            onChange={handleChange}
+            required
+          />
 
           <button type="submit">Rezervovať</button>
         </form>
