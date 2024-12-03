@@ -18,9 +18,6 @@ export default function Header() {
             <li>
               <a href="reservation.html">Rezervácia</a>
             </li>
-            <li>
-              <a href="manage.html">Správa</a>
-            </li>
           </ul>
         </nav>
       </header>

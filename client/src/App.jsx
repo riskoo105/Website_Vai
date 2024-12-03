@@ -4,7 +4,6 @@ import Facilities from './pages/facilitiesPage/Facilities.jsx'
 import Footer from './pages/layout/Footer.jsx'
 import Header from './pages/layout/Header.jsx'
 import Reservation from './pages/reservationPage/Reservation.jsx'
-import Manage from './pages/managePage/manage.jsx'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 
 function Layout({ children }) {
@@ -26,7 +25,6 @@ export default function App() {
         <Route path="/" element={<Layout><Home /></Layout>} />
         <Route path="/facilities.html" element={<Layout><Facilities /></Layout>} />
         <Route path="/reservation.html" element={<Layout><Reservation /></Layout>} />
-        <Route path="/manage.html" element={<Layout><Manage /></Layout>} />
       </Routes>
       
     </BrowserRouter>
