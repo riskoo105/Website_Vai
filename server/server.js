@@ -75,6 +75,7 @@ app.put("/api/reservations/:id", (req, res) => {
       [firstName, lastName, email, phone, facility, startTime, endTime, req.params.id],
       (err, result) => {
         if (err) {
+          //console.error("Error updating reservation:", err);
           res.status(500).send("Error updating reservation");
           return;
         }
