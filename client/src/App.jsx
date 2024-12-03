@@ -24,9 +24,9 @@ export default function App() {
 
       <Routes>
         <Route path="/" element={<Layout><Home /></Layout>} />
-        <Route path="/facilities.html" element={<Layout><Facilities /></Layout>} />
-        <Route path="/reservation.html" element={<Layout><Reservation /></Layout>} />
-        <Route path="/manage.html" element={<Layout><Manage /></Layout>} />
+        <Route path="/facilities" element={<Layout><Facilities /></Layout>} />
+        <Route path="/reservation" element={<Layout><Reservation /></Layout>} />
+        <Route path="/manage" element={<Layout><Manage /></Layout>} />
       </Routes>
       
     </BrowserRouter>

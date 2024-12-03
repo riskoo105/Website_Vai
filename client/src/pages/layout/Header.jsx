@@ -1,4 +1,5 @@
 import React from "react";
+import { NavLink } from "react-router-dom";
 
 export default function Header() {
   return (
@@ -8,18 +9,16 @@ export default function Header() {
         <nav>
           <ul>
             <li>
-              <a href="index.html" class="active">
-                Domov
-              </a>
+              <NavLink to="/" className={({ isActive }) => (isActive ? "active" : "")}>Domov</NavLink>
             </li>
             <li>
-              <a href="facilities.html">Zariadenia</a>
+              <NavLink to="/facilities" className={({ isActive }) => (isActive ? "active" : "")}>Zariadenia</NavLink>
             </li>
             <li>
-              <a href="reservation.html">Rezervácia</a>
+              <NavLink to="/reservation" className={({ isActive }) => (isActive ? "active" : "")}>Rezervácia</NavLink>
             </li>
             <li>
-              <a href="manage.html">Správa</a>
+              <NavLink to="/manage" className={({ isActive }) => (isActive ? "active" : "")}>Správa</NavLink>
             </li>
           </ul>
         </nav>
