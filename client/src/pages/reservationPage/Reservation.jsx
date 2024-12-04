@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { reservationSchema } from "../../validationSchemaClient"; // Import validačnej schémy
 
 export default function Reservation() {
   const [formData, setFormData] = useState({
@@ -12,6 +13,8 @@ export default function Reservation() {
     endTime: "",
   });
 
+  const [errors, setErrors] = useState({});
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prevData) => ({
@@ -22,9 +25,17 @@ export default function Reservation() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     try {
+      // Validácia údajov pomocou zdieľanej schémy
+      reservationSchema.parse(formData);
+      setErrors({}); // Resetovať chyby pri úspešnej validácii
+
+      // Poslanie údajov na server, ak je validácia úspešná
       await axios.post("http://localhost:8080/api/reservations", formData);
-      alert("Reservation submitted successfully");
+      alert("Rezervácia úspešne odoslaná!");
+
+      // Resetovanie formulára po úspešnom odoslaní
       setFormData({
         firstName: "",
         lastName: "",
@@ -34,8 +45,15 @@ export default function Reservation() {
         startTime: "",
         endTime: "",
       });
-    } catch (error) {
-      alert("Error submitting reservation: " + error.message);
+    } catch (validationError) {
+      // Ak validácia zlyhá, zobraziť chyby
+      if (validationError.errors) {
+        const errorMap = validationError.errors.reduce((acc, curr) => {
+          acc[curr.path[0]] = curr.message;
+          return acc;
+        }, {});
+        setErrors(errorMap);
+      }
     }
   };
 
@@ -53,6 +71,7 @@ export default function Reservation() {
             onChange={handleChange}
             required
           />
+          {errors.firstName && <p className="error">{errors.firstName}</p>}
 
           <label htmlFor="last-name">Priezvisko:</label>
           <input
@@ -63,6 +82,7 @@ export default function Reservation() {
             onChange={handleChange}
             required
           />
+          {errors.lastName && <p className="error">{errors.lastName}</p>}
 
           <label htmlFor="email">Email:</label>
           <input
@@ -73,6 +93,7 @@ export default function Reservation() {
             onChange={handleChange}
             required
           />
+          {errors.email && <p className="error">{errors.email}</p>}
 
           <label htmlFor="phone">Telefónne číslo:</label>
           <input
@@ -83,6 +104,7 @@ export default function Reservation() {
             onChange={handleChange}
             required
           />
+          {errors.phone && <p className="error">{errors.phone}</p>}
 
           <label htmlFor="facility">Zariadenie:</label>
           <select
@@ -99,6 +121,7 @@ export default function Reservation() {
             <option value="tennis">Tenisový kurt</option>
             <option value="basketball">Basketbalové ihrisko</option>
           </select>
+          {errors.facility && <p className="error">{errors.facility}</p>}
 
           <label htmlFor="start-time">Čas začiatku rezervácie:</label>
           <input
@@ -109,6 +132,7 @@ export default function Reservation() {
             onChange={handleChange}
             required
           />
+          {errors.startTime && <p className="error">{errors.startTime}</p>}
 
           <label htmlFor="end-time">Čas konca rezervácie:</label>
           <input
@@ -119,6 +143,7 @@ export default function Reservation() {
             onChange={handleChange}
             required
           />
+          {errors.endTime && <p className="error">{errors.endTime}</p>}
 
           <button type="submit">Rezervovať</button>
         </form>

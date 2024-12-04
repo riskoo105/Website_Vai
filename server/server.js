@@ -3,6 +3,7 @@ const app = express();
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const mysql = require("mysql2");
+const { reservationSchema } = require("../server/validationSchemaServer");
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -27,8 +28,13 @@ db.connect((err) => {
 
 // POST - Create reservation
 app.post("/api/reservations", (req, res) => {
+  try {
+    // Validácia údajov pomocou schémy
+    reservationSchema.parse(req.body);
+
     const { firstName, lastName, email, phone, facility, startTime, endTime } = req.body;
-    const query = "INSERT INTO reservations (firstName, lastName, email, phone, facility, startTime, endTime) VALUES (?, ?, ?, ?, ?, ?, ?)";
+    const query =
+      "INSERT INTO reservations (firstName, lastName, email, phone, facility, startTime, endTime) VALUES (?, ?, ?, ?, ?, ?, ?)";
     db.query(query, [firstName, lastName, email, phone, facility, startTime, endTime], (err, result) => {
       if (err) {
         res.status(500).send("Error inserting reservation");
@@ -36,7 +42,10 @@ app.post("/api/reservations", (req, res) => {
       }
       res.status(201).send({ id: result.insertId });
     });
-  });
+  } catch (validationError) {
+    res.status(400).json({ errors: validationError.errors.map((err) => ({ path: err.path, message: err.message })) });
+  }
+});
 
 // GET - Fetch all reservations
 app.get("/api/reservations", (req, res) => {
@@ -64,6 +73,10 @@ app.delete("/api/reservations/:id", (req, res) => {
 
 // PUT - Update reservation
 app.put("/api/reservations/:id", (req, res) => {
+  try {
+    // Validácia údajov pomocou schémy
+    reservationSchema.parse(req.body);
+
     const { firstName, lastName, email, phone, facility, startTime, endTime } = req.body;
     const query = `
       UPDATE reservations 
@@ -75,7 +88,6 @@ app.put("/api/reservations/:id", (req, res) => {
       [firstName, lastName, email, phone, facility, startTime, endTime, req.params.id],
       (err, result) => {
         if (err) {
-          //console.error("Error updating reservation:", err);
           res.status(500).send("Error updating reservation");
           return;
         }
@@ -86,7 +98,10 @@ app.put("/api/reservations/:id", (req, res) => {
         res.status(200).send("Reservation updated");
       }
     );
-  });
+  } catch (validationError) {
+    res.status(400).json({ errors: validationError.errors.map((err) => ({ path: err.path, message: err.message })) });
+  }
+});
 
 const port = 8080;
 app.listen(port, () => {
