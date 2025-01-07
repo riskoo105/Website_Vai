@@ -3,6 +3,8 @@ const app = express();
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const mysql = require("mysql2");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 const { reservationSchema } = require("../server/validationSchemaServer");
 
 app.use(cors());
@@ -25,6 +27,75 @@ db.connect((err) => {
       console.log("Connected to the database.");
     }
   });
+
+// POST - Register a new user
+app.post("/api/register", async (req, res) => {
+  try {
+    const { firstName, lastName, email, phone, password } = req.body;
+
+    // Logovanie požiadavky pre diagnostiku
+    console.log("Request body:", req.body);
+
+    // Kontrola, či už existuje používateľ s týmto emailom
+    const checkUserQuery = "SELECT * FROM users WHERE email = ?";
+    db.query(checkUserQuery, [email], async (err, results) => {
+      if (err) {
+        console.error("Error checking for existing user:", err);
+        return res.status(500).send("Error checking for existing user");
+      }
+
+      if (results.length > 0) {
+        return res.status(400).send("Email is already in use");
+      }
+
+      // Hashovanie hesla
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Vloženie nového používateľa do databázy
+      const insertUserQuery = "INSERT INTO users (firstName, lastName, email, phone, password) VALUES (?, ?, ?, ?, ?)";
+      db.query(
+        insertUserQuery,
+        [firstName, lastName, email, phone, hashedPassword],
+        (err, result) => {
+          if (err) {
+            console.error("Error registering user:", err);
+            return res.status(500).send("Error registering user");
+          }
+          console.log("User registered with ID:", result.insertId);
+          res.status(201).send({ id: result.insertId });
+        }
+      );
+    });
+  } catch (error) {
+    console.error("Server error during registration:", error);
+    res.status(500).send("Error during registration");
+  }
+});
+
+// POST - Login a user
+app.post("/api/login", (req, res) => {
+  const { email, password } = req.body;
+
+  const query = "SELECT * FROM users WHERE email = ?";
+  db.query(query, [email], async (err, results) => {
+    if (err || results.length === 0) {
+      return res.status(401).send("Invalid email or password");
+    }
+
+    const user = results[0];
+
+    // Porovnanie hesla
+    const isPasswordCorrect = await bcrypt.compare(password, user.password);
+    if (!isPasswordCorrect) {
+      return res.status(401).send("Invalid email or password");
+    }
+
+    // Generovanie JWT tokenu
+    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET, { expiresIn: "1h" });
+
+    res.json({ token });
+  });
+});
 
 // POST - Create reservation
 app.post("/api/reservations", (req, res) => {

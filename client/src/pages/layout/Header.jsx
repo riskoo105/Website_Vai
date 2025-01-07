@@ -20,6 +20,12 @@ export default function Header() {
             <li>
               <NavLink to="/manage" className={({ isActive }) => (isActive ? "active" : "")}>Správa</NavLink>
             </li>
+            <li>
+              <NavLink to="/register" className={({ isActive }) => (isActive ? "active" : "")}>Registrácia</NavLink>
+            </li>
+            <li>
+              <NavLink to="/login" className={({ isActive }) => (isActive ? "active" : "")}>Prihlásenie</NavLink>
+            </li>
           </ul>
         </nav>
       </header>

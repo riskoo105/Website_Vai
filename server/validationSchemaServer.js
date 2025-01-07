@@ -14,7 +14,7 @@ const reservationSchema = z
     phone: z
       .string()
       .regex(/^\d{10}$/, "Telefónne číslo musí obsahovať presne 10 číslic"),
-    facility: z.string().nonempty("Musíte vybrať zariadenie"),
+    facility: z.string().nonempty("Musíte vybrať zariadenie"), // depricated pozrieť
     startTime: z
       .string()
       .nonempty("Čas začiatku je povinný")
