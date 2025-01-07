@@ -1,13 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import Cookies from "js-cookie";
 
 export default function Login() {
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
-
+  const [formData, setFormData] = useState({ email: "", password: "" });
   const [errorMessage, setErrorMessage] = useState("");
   const navigate = useNavigate();
 
@@ -19,19 +16,56 @@ export default function Login() {
     e.preventDefault();
 
     try {
-      const response = await axios.post("http://localhost:8080/api/login", formData);
+      const response = await axios.post("http://localhost:8080/api/login", formData, {
+        withCredentials: true,
+      });
+
       if (response.status === 200) {
-        localStorage.setItem("token", response.data.token);  // Uloženie tokenu do localStorage
-        navigate("/");  // Presmerovanie na domovskú stránku po prihlásení
+        Cookies.set("accessToken", response.data.accessToken, { expires: 7, path: "/" });
+        Cookies.set("refreshToken", response.data.refreshToken, { expires: 7, path: "/" });
+        Cookies.set("role", response.data.role, { expires: 7, path: "/" });
+
+        navigate("/");  // Redirect after successful login
       }
     } catch (error) {
-      setErrorMessage("Chyba pri prihlásení. Skontrolujte email alebo heslo.");
+      setErrorMessage("Error logging in. Please check your email or password.");
     }
   };
 
+  // Helper function to refresh access token if expired
+  const refreshAccessToken = async () => {
+    try {
+      const response = await axios.post("http://localhost:8080/api/refresh-token", null, {
+        withCredentials: true,
+      });
+
+      // Update the new access token in cookies
+      if (response.data.accessToken) {
+        Cookies.set("accessToken", response.data.accessToken, { expires: 7, path: "/" });
+      }
+    } catch (error) {
+      console.error("Error refreshing token:", error);
+    }
+  };
+
+  // Effect to refresh token if the access token expires
+  useEffect(() => {
+    const accessToken = Cookies.get("accessToken");
+
+    if (accessToken) {
+      const tokenExpiration = new Date(JSON.parse(atob(accessToken.split(".")[1]))?.exp * 1000);
+      const now = new Date();
+
+      if (now >= tokenExpiration) {
+        // Token has expired, refresh it
+        refreshAccessToken();
+      }
+    }
+  }, []);
+
   return (
     <div>
-      <h2>Prihlásenie</h2>
+      <h2>Login</h2>
       <form onSubmit={handleSubmit}>
         <input
           type="email"
@@ -46,11 +80,11 @@ export default function Login() {
           name="password"
           value={formData.password}
           onChange={handleChange}
-          placeholder="Heslo"
+          placeholder="Password"
           required
         />
         {errorMessage && <p>{errorMessage}</p>}
-        <button type="submit">Prihlásiť sa</button>
+        <button type="submit">Login</button>
       </form>
     </div>
   );
