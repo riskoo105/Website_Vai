@@ -1,19 +1,61 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { reservationSchema } from "../../validationSchemaClient"; // Import validačnej schémy
+//import { reservationSchema } from "../../validationSchemaClient"; 
+import Cookies from "js-cookie";
 
 export default function Reservation() {
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
     facility: "",
     startTime: "",
     endTime: "",
   });
-
+  const [facilities, setFacilities] = useState([]); // Načítané zariadenia
   const [errors, setErrors] = useState({});
+  const [userData, setUserData] = useState({});
+
+  // Načítanie prihláseného používateľa
+  useEffect(() => {
+    const verifyToken = async () => {
+      let token = Cookies.get("accessToken");
+  
+      if (!token) {
+        console.error("Access token chýba. Pokúšam sa obnoviť...");
+        try {
+          const response = await axios.post("http://localhost:8080/api/refresh-token", {}, { withCredentials: true });
+          token = response.data.accessToken;
+          Cookies.set("accessToken", token, { path: "/" });  // Uložíme nový token
+        } catch (error) {
+          console.error("Chyba pri obnove tokenu:", error);
+          return;
+        }
+      }
+  
+      try {
+        const userInfo = JSON.parse(atob(token.split(".")[1]));
+        console.log("Dekódované údaje používateľa:", userInfo);
+        setUserData({
+          id: userInfo.id,
+          email: userInfo.email,
+        });
+      } catch (error) {
+        console.error("Chyba pri dekódovaní tokenu:", error);
+      }
+    };
+  
+    verifyToken();
+  }, []);
+  
+
+  // Načítanie dostupných zariadení
+  useEffect(() => {
+    axios.get("http://localhost:8080/api/facilities")
+      .then(response => {
+        setFacilities(response.data); // Uloženie načítaných zariadení
+      })
+      .catch(() => {
+        alert("Chyba pri načítavaní zariadení.");
+      });
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -25,87 +67,76 @@ export default function Reservation() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+  
     try {
-      // Validácia údajov pomocou zdieľanej schémy
-      reservationSchema.parse(formData);
-      setErrors({}); // Resetovať chyby pri úspešnej validácii
-
-      // Poslanie údajov na server, ak je validácia úspešná
-      await axios.post("http://localhost:8080/api/reservations", formData);
+      // Kontrola platnosti access tokenu
+      let token = Cookies.get("accessToken");
+      if (!token) {
+        console.log("Access token chýba, pokúšam sa obnoviť...");
+        const response = await axios.post("http://localhost:8080/api/refresh-token", {}, { withCredentials: true });
+        token = response.data.accessToken;
+        Cookies.set("accessToken", token, { path: "/" });
+      }
+  
+      // Overenie dekódovania tokenu
+      const userInfo = JSON.parse(atob(token.split(".")[1]));
+      console.log("Dekódované údaje používateľa:", userInfo);
+  
+      // Odoslanie rezervácie
+      console.log("Odosielané údaje:", {
+        user_id: userInfo.id,
+        facility: formData.facility,
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+      });
+  
+      await axios.post("http://localhost:8080/api/reservations", {
+        user_id: userInfo.id,
+        facility: formData.facility,
+        startTime: formData.startTime,
+        endTime: formData.endTime,
+      }, {
+        withCredentials: true  // Toto musí byť pridané pre odoslanie cookies
+      });
+  
       alert("Rezervácia úspešne odoslaná!");
-
-      // Resetovanie formulára po úspešnom odoslaní
       setFormData({
-        firstName: "",
-        lastName: "",
-        email: "",
-        phone: "",
         facility: "",
         startTime: "",
         endTime: "",
       });
-    } catch (validationError) {
-      // Ak validácia zlyhá, zobraziť chyby
-      if (validationError.errors) {
-        const errorMap = validationError.errors.reduce((acc, curr) => {
-          acc[curr.path[0]] = curr.message;
-          return acc;
-        }, {});
-        setErrors(errorMap);
-      }
+  
+    } catch (error) {
+      console.error("Chyba pri odosielaní rezervácie:", error);
+      alert("Chyba pri odosielaní rezervácie.");
     }
   };
+  
+  
+
+  axios.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+      if (error.response.status === 401 && error.response.data.message === "Invalid token") {
+        try {
+          // Požiadavka na obnovu tokenu
+          await axios.post("http://localhost:8080/api/refresh-token");
+          // Opätovné odoslanie pôvodnej požiadavky
+          return axios(error.config);
+        } catch (refreshError) {
+          console.error("Unable to refresh token:", refreshError);
+          return Promise.reject(refreshError);
+        }
+      }
+      return Promise.reject(error);
+    }
+  );
 
   return (
     <div>
       <section>
         <h2>Vyplňte formulár pre rezerváciu</h2>
         <form onSubmit={handleSubmit}>
-          <label htmlFor="first-name">Meno:</label>
-          <input
-            type="text"
-            id="first-name"
-            name="firstName"
-            value={formData.firstName}
-            onChange={handleChange}
-            required
-          />
-          {errors.firstName && <p className="error">{errors.firstName}</p>}
-
-          <label htmlFor="last-name">Priezvisko:</label>
-          <input
-            type="text"
-            id="last-name"
-            name="lastName"
-            value={formData.lastName}
-            onChange={handleChange}
-            required
-          />
-          {errors.lastName && <p className="error">{errors.lastName}</p>}
-
-          <label htmlFor="email">Email:</label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            value={formData.email}
-            onChange={handleChange}
-            required
-          />
-          {errors.email && <p className="error">{errors.email}</p>}
-
-          <label htmlFor="phone">Telefónne číslo:</label>
-          <input
-            type="tel"
-            id="phone"
-            name="phone"
-            value={formData.phone}
-            onChange={handleChange}
-            required
-          />
-          {errors.phone && <p className="error">{errors.phone}</p>}
-
           <label htmlFor="facility">Zariadenie:</label>
           <select
             id="facility"
@@ -117,9 +148,11 @@ export default function Reservation() {
             <option value="" disabled>
               Vyberte zariadenie
             </option>
-            <option value="football">Futbalové ihrisko</option>
-            <option value="tennis">Tenisový kurt</option>
-            <option value="basketball">Basketbalové ihrisko</option>
+            {facilities.map((facility) => (
+              <option key={facility.id} value={facility.id}>
+                {facility.name}
+              </option>
+            ))}
           </select>
           {errors.facility && <p className="error">{errors.facility}</p>}
 

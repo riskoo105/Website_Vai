@@ -1,60 +1,26 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { NavLink } from "react-router-dom";
-import Cookies from "js-cookie";
+import { useAuth } from "../../AuthContext.jsx";
 
 export default function Header() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [userRole, setUserRole] = useState("");
-
-  // Update the state based on the cookies when the component mounts
-  useEffect(() => {
-    const accessToken = Cookies.get("accessToken");
-    const role = Cookies.get("role");
-    setIsLoggedIn(!!accessToken);
-    setUserRole(role);
-  }, [Cookies.get("accessToken"), Cookies.get("role")]);  // Re-run effect when cookies change
-
-  const handleLogout = () => {
-    Cookies.remove("accessToken");  // Odstránenie 'accessToken'
-    Cookies.remove("role");
-    setIsLoggedIn(false);
-    setUserRole("");
-    window.location.href = "/login";
-  };
+  const { user, logout } = useAuth();
 
   return (
     <header>
       <nav>
         <ul>
-          <li>
-            <NavLink to="/">Domov</NavLink>
-          </li>
-          <li>
-            <NavLink to="/facilities">Zariadenia</NavLink>
-          </li>
-          {isLoggedIn && (
+          <li><NavLink to="/">Domov</NavLink></li>
+          <li><NavLink to="/facilities">Zariadenia</NavLink></li>
+          {user ? (
             <>
-              <li>
-                <NavLink to="/reservation">Rezervácia</NavLink>
-              </li>
-              {userRole === "admin" && (
-                <li>
-                  <NavLink to="/manage">Správa</NavLink>
-                </li>
-              )}
-              <li>
-                <button onClick={handleLogout}>Odhlásiť sa</button>
-              </li>
+              <li><NavLink to="/reservation">Rezervácia</NavLink></li>
+              {user.role === "admin" && <li><NavLink to="/manage">Správa</NavLink></li>}
+              <li><button onClick={logout}>Odhlásiť sa</button></li>
             </>
-          )}
-          {!isLoggedIn && (
+          ) : (
             <>
-              <li>
-                <NavLink to="/register">Registrácia</NavLink>
-              </li>
-              <li>
-                <NavLink to="/login">Prihlásenie</NavLink>
-              </li>
+              <li><NavLink to="/register">Registrácia</NavLink></li>
+              <li><NavLink to="/login">Prihlásenie</NavLink></li>
             </>
           )}
         </ul>

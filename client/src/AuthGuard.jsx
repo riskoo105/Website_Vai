@@ -1,17 +1,20 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
-import Cookies from "js-cookie";
+import { useAuth } from "./AuthContext.jsx";
 
 export default function AuthGuard({ children, roles }) {
+  const { user } = useAuth();
   const navigate = useNavigate();
-  const token = Cookies.get("accessToken");
-  const userRole = Cookies.get("role");
 
-  useEffect(() => {
-    if (!token || (roles && !roles.includes(userRole))) {
-      navigate("/login");
-    }
-  }, [token, userRole, roles, navigate]);
+  if (!user) {
+    navigate("/login");
+    return null;
+  }
+
+  if (roles && !roles.includes(user.role)) {
+    navigate("/");
+    return null;
+  }
 
   return <>{children}</>;
 }

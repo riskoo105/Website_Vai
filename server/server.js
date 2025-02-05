@@ -6,7 +6,8 @@ const mysql = require("mysql2");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
-const { reservationSchema } = require("./validationSchemaServer");
+const axios = require('axios');
+//const { reservationSchema } = require("./validationSchemaServer");
 
 app.use(cors({
   origin: "http://localhost:5173", // URL vašho frontendu
@@ -83,17 +84,10 @@ app.post("/api/login", async (req, res) => {
         return res.status(401).send("Invalid email or password");
       }
 
-      const accessToken = jwt.sign(
-        { id: user.id, email: user.email, role: user.role },
-        process.env.JWT_SECRET,
-        { expiresIn: "10s" }
-      );
-
-      const refreshToken = jwt.sign(
-        { id: user.id, email: user.email, role: user.role },
-        process.env.JWT_SECRET,
-        { expiresIn: "7d" }
-      );
+      // Generujeme access a refresh token
+      const payload = { id: user.id, email: user.email, role: user.role };
+      const accessToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "10s" });
+      const refreshToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "7d" });
 
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // Expirácia access tokenu
       const insertQuery = `
@@ -105,17 +99,19 @@ app.post("/api/login", async (req, res) => {
           return res.status(500).send("Error saving token");
         }
 
-        res.cookie("access_token", accessToken, {
+        res.cookie("accessToken", accessToken, {
           httpOnly: true,
-          secure: false, // Nastav na true pre HTTPS
+          secure: false,
           sameSite: "Strict",
+          path: "/"
         });
 
-        res.cookie("refresh_token", refreshToken, {
+        res.cookie("refreshToken", refreshToken, {
           httpOnly: true,
-          secure: false, // Nastav na true pre HTTPS
+          secure: false,
           maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dní
           sameSite: "Strict",
+          path: "/"
         });
 
         res.status(200).send({
@@ -123,6 +119,7 @@ app.post("/api/login", async (req, res) => {
           accessToken: accessToken,
           refreshToken: refreshToken,
           role: user.role,
+          id: user.id, // Posielame aj ID užívateľa pre lepšiu navigáciu vo frontende
         });
       });
     });
@@ -131,41 +128,76 @@ app.post("/api/login", async (req, res) => {
   }
 });
 
-// Middleware for token authentication
-const authenticateToken = (req, res, next) => {
-  const accessToken = req.cookies.access_token;
+// Middleware na autentifikáciu s kontrolou obnovy
+const authenticateToken = async (req, res, next) => {
+  let accessToken = req.cookies.accessToken;
 
   if (!accessToken) {
-    return res.status(403).json({ message: "Access token missing" });
+    console.log("Access token chýba, pokúšam sa obnoviť...");
+    try {
+      const refreshResponse = await axios.post("http://localhost:8080/api/refresh-token", {}, { withCredentials: true });
+      accessToken = refreshResponse.data.accessToken;
+      res.cookie("accessToken", accessToken, {
+        httpOnly: true,
+        secure: false,
+        sameSite: "Strict",
+        path: "/",
+      });
+    } catch (error) {
+      console.error("Obnova tokenu zlyhala:", error);
+      return res.status(401).json({ message: "Unable to authenticate" });
+    }
   }
 
-  jwt.verify(accessToken, process.env.JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(401).json({ message: "Invalid token" });
-    }
+  try {
+    const user = jwt.verify(accessToken, process.env.JWT_SECRET);
     req.user = user;
     next();
-  });
+  } catch (err) {
+    console.error("Access token je neplatný:", err);
+    res.status(403).json({ message: "Invalid token" });
+  }
 };
+
+// GET - Overenie prihlásenia
+app.get("/api/auth-check", authenticateToken, (req, res) => {
+  res.status(200).json({ message: "User is authenticated", role: req.user.role });
+});
+
+// GET - Fetch facilities in service
+app.get("/api/facilities", (req, res) => {
+  const query = "SELECT id, name FROM facilities WHERE inService = TRUE";
+  db.query(query, (err, results) => {
+    if (err) {
+      return res.status(500).send("Error fetching facilities");
+    }
+    res.json(results);
+  });
+});
 
 // POST - Create reservation
 app.post("/api/reservations", authenticateToken, (req, res) => {
-  try {
-    reservationSchema.parse(req.body);
+  const { user_id, facility, startTime, endTime } = req.body;
 
-    const { firstName, lastName, email, phone, facility, startTime, endTime } = req.body;
-    const query =
-      "INSERT INTO reservations (firstName, lastName, email, phone, facility, startTime, endTime) VALUES (?, ?, ?, ?, ?, ?, ?)";
-    db.query(query, [firstName, lastName, email, phone, facility, startTime, endTime], (err, result) => {
-      if (err) {
-        return res.status(500).send("Error inserting reservation");
-      }
-      res.status(201).send({ id: result.insertId });
-    });
-  } catch (validationError) {
-    res.status(400).json({ errors: validationError.errors });
+  console.log("Prijaté dáta pre rezerváciu:", { user_id, facility, startTime, endTime });
+
+  if (!user_id || !facility || !startTime || !endTime) {
+    return res.status(400).send("Chýbajúce alebo nesprávne údaje pre rezerváciu.");
   }
+
+  const query = `
+    INSERT INTO reservations (user_id, facility_id, startTime, endTime) 
+    VALUES (?, ?, ?, ?)
+  `;
+  db.query(query, [user_id, facility, startTime, endTime], (err, result) => {
+    if (err) {
+      console.error("Chyba pri vkladaní rezervácie:", err);
+      return res.status(500).send("Error inserting reservation");
+    }
+    res.status(201).send({ id: result.insertId });
+  });
 });
+
 
 // GET - Fetch all reservations
 app.get("/api/reservations", authenticateToken, (req, res) => {
@@ -218,29 +250,27 @@ app.put("/api/reservations/:id", authenticateToken, (req, res) => {
 
 // POST - Refresh token
 app.post("/api/refresh-token", (req, res) => {
-  const refreshToken = req.cookies.refresh_token;
+  const refreshToken = req.cookies.refreshToken;
 
   if (!refreshToken) {
     return res.status(403).send("Refresh token missing");
   }
 
-  // Verify the refresh token
   jwt.verify(refreshToken, process.env.JWT_SECRET, (err, user) => {
     if (err) {
       return res.status(403).send("Invalid refresh token");
     }
 
-    // Generate a new access token
     const newAccessToken = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "10s" }
     );
 
-    // Send the new access token
+    // Uloženie nového access tokenu do cookies
     res.cookie("accessToken", newAccessToken, {
       httpOnly: true,
-      secure: false, // Set to true if using HTTPS
+      secure: false,
       sameSite: "Strict",
     });
 
@@ -259,18 +289,18 @@ app.post("/api/logout", (req, res) => {
     return res.status(400).send("Refresh token missing");
   }
 
-  res.clearCookie("accessToken");
-  res.clearCookie("refreshToken");
-
   const query = "DELETE FROM user_tokens WHERE refreshToken = ?";
   db.query(query, [refreshToken], (err) => {
     if (err) {
       return res.status(500).send("Error during logout");
     }
+
+    res.clearCookie("accessToken");
+    res.clearCookie("refreshToken");
+
     res.status(200).send({ message: "Logout successful" });
   });
 });
-
 
 const port = 8080;
 app.listen(port, () => {
