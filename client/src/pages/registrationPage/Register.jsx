@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { registerSchema } from "../../validationSchemaClient";
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -14,6 +15,7 @@ export default function Register() {
 
   const [errorMessage, setErrorMessage] = useState("");
   const navigate = useNavigate();
+  const [errors, setErrors] = useState({}); // Chyby validácie
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -21,6 +23,20 @@ export default function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrors({});
+
+    // Validácia pomocou zod schémy
+    try {
+      registerSchema.parse(formData);
+    } catch (validationError) {
+      const errorMap = validationError.errors.reduce((acc, curr) => {
+        acc[curr.path[0]] = curr.message;
+        return acc;
+      }, {});
+      setErrors(errorMap);
+      return;
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setErrorMessage("Heslá sa musia zhodovať!");
       return;
@@ -48,6 +64,8 @@ export default function Register() {
           placeholder="Meno"
           required
         />
+        {errors.firstName && <p className="error">{errors.firstName}</p>}
+
         <input
           type="text"
           name="lastName"
@@ -56,6 +74,8 @@ export default function Register() {
           placeholder="Priezvisko"
           required
         />
+        {errors.lastName && <p className="error">{errors.lastName}</p>}
+
         <input
           type="email"
           name="email"
@@ -64,6 +84,8 @@ export default function Register() {
           placeholder="Email"
           required
         />
+        {errors.email && <p className="error">{errors.email}</p>}
+
         <input
           type="text"
           name="phone"
@@ -72,6 +94,8 @@ export default function Register() {
           placeholder="Telefónne číslo"
           required
         />
+        {errors.phone && <p className="error">{errors.phone}</p>}
+
         <input
           type="password"
           name="password"
@@ -80,6 +104,8 @@ export default function Register() {
           placeholder="Heslo"
           required
         />
+        {errors.password && <p className="error">{errors.password}</p>}
+
         <input
           type="password"
           name="confirmPassword"
@@ -88,6 +114,8 @@ export default function Register() {
           placeholder="Potvrdiť heslo"
           required
         />
+        {errors.confirmPassword && <p className="error">{errors.confirmPassword}</p>}
+
         {errorMessage && <p>{errorMessage}</p>}
         <button type="submit">Registrovať sa</button>
       </form>
