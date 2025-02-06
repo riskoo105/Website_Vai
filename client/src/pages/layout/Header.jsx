@@ -5,6 +5,11 @@ import { useAuth } from "../../AuthContext.jsx";
 export default function Header() {
   const { user, logout } = useAuth();
 
+  const handleLogout = (e) => {
+    e.preventDefault();
+    logout();
+  };
+
   return (
     <header>
       <nav>
@@ -17,7 +22,11 @@ export default function Header() {
               <li><NavLink to="/my-reservations">Moje rezervácie</NavLink></li>
               <li><NavLink to="/profile">Profil</NavLink></li>
               {user.role === "admin" && <li><NavLink to="/manage">Správa</NavLink></li>}
-              <li><button onClick={logout}>Odhlásiť sa</button></li>
+              <li>
+                <NavLink to="/" onClick={handleLogout}>
+                  Odhlásiť sa
+                </NavLink>
+              </li>
             </>
           ) : (
             <>
