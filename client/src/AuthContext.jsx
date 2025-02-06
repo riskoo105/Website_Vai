@@ -11,29 +11,64 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const checkAndRefreshToken = async () => {
       let accessToken = Cookies.get("accessToken");
+  
       if (!accessToken) {
         console.log("Access token chýba, pokúšam sa obnoviť...");
         try {
-          const response = await axios.post("http://localhost:8080/api/refresh-token", {}, { withCredentials: true });
-          accessToken = response.data.accessToken;
-          Cookies.set("accessToken", accessToken, { path: "/" });
-          console.log("Access token obnovený.");
+          const refreshResponse = await axios.post("http://localhost:8080/api/refresh-token", {}, { withCredentials: true });
+          accessToken = refreshResponse.data.accessToken;
+          Cookies.set("accessToken", accessToken, { path: "/", expires: 7 });
         } catch (error) {
-          console.error("Chyba pri obnove tokenu:", error);
+          console.error("Obnova tokenu zlyhala", error);
+          setUser(null);
+          setLoading(false);
           return;
         }
       }
+  
       try {
         const decodedToken = JSON.parse(atob(accessToken.split(".")[1]));
         setUser({ id: decodedToken.id, email: decodedToken.email, role: decodedToken.role });
       } catch (error) {
         console.error("Chyba pri dekódovaní tokenu", error);
+        setUser(null);
       } finally {
         setLoading(false);
       }
     };
+  
     checkAndRefreshToken();
   }, []);
+
+  axios.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+      if (error.response && error.response.status === 401) {
+        try {
+          const refreshResponse = await axios.post(
+            "http://localhost:8080/api/refresh-token",
+            {},
+            { withCredentials: true }
+          );
+          
+          const newAccessToken = refreshResponse.data.accessToken;
+          Cookies.set("accessToken", newAccessToken, { path: "/", expires: 7 });
+  
+          // Zopakuj pôvodnú požiadavku
+          error.config.headers['Authorization'] = `Bearer ${newAccessToken}`;
+          return axios(error.config);
+        } catch (refreshError) {
+          console.error("Unable to refresh token:", refreshError);
+          Cookies.remove("accessToken");
+          Cookies.remove("refreshToken");
+          setUser(null);
+          return Promise.reject(refreshError);
+        }
+      }
+      return Promise.reject(error);
+    }
+  );
+  
 
   const login = async (email, password) => {
     try {

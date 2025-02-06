@@ -48,9 +48,9 @@ export default function Reservation() {
 
   // Načítanie dostupných zariadení
   useEffect(() => {
-    axios.get("http://localhost:8080/api/facilities")
+    axios.get("http://localhost:8080/api/facilities/in-service")
       .then(response => {
-        setFacilities(response.data); // Uloženie načítaných zariadení
+        setFacilities(response.data); // Načítanie len dostupných zariadení
       })
       .catch(() => {
         alert("Chyba pri načítavaní zariadení.");
@@ -67,9 +67,13 @@ export default function Reservation() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (!formData.facility) {
+      alert("Prosím, vyberte zariadenie.");
+      return;
+    }
   
     try {
-      // Kontrola platnosti access tokenu
       let token = Cookies.get("accessToken");
       if (!token) {
         console.log("Access token chýba, pokúšam sa obnoviť...");
@@ -78,26 +82,26 @@ export default function Reservation() {
         Cookies.set("accessToken", token, { path: "/" });
       }
   
-      // Overenie dekódovania tokenu
       const userInfo = JSON.parse(atob(token.split(".")[1]));
       console.log("Dekódované údaje používateľa:", userInfo);
   
-      // Odoslanie rezervácie
-      console.log("Odosielané údaje:", {
+      console.log("Odosielané údaje pre rezerváciu:", {
         user_id: userInfo.id,
-        facility: formData.facility,
+        facility_id: formData.facility,  // Tu opravujeme, aby sa správne odoslal ID zariadenia
         startTime: formData.startTime,
         endTime: formData.endTime,
       });
   
-      await axios.post("http://localhost:8080/api/reservations", {
-        user_id: userInfo.id,
-        facility: formData.facility,
-        startTime: formData.startTime,
-        endTime: formData.endTime,
-      }, {
-        withCredentials: true  // Toto musí byť pridané pre odoslanie cookies
-      });
+      await axios.post(
+        "http://localhost:8080/api/reservations",
+        {
+          user_id: userInfo.id,
+          facility: formData.facility,  // Opravená hodnota
+          startTime: formData.startTime,
+          endTime: formData.endTime,
+        },
+        { withCredentials: true }
+      );
   
       alert("Rezervácia úspešne odoslaná!");
       setFormData({
@@ -111,6 +115,7 @@ export default function Reservation() {
       alert("Chyba pri odosielaní rezervácie.");
     }
   };
+  
   
   
 

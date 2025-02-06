@@ -86,7 +86,7 @@ app.post("/api/login", async (req, res) => {
 
       // Generujeme access a refresh token
       const payload = { id: user.id, email: user.email, role: user.role };
-      const accessToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "10s" });
+      const accessToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "10m" });
       const refreshToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "7d" });
 
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // Expirácia access tokenu
@@ -101,15 +101,15 @@ app.post("/api/login", async (req, res) => {
 
         res.cookie("accessToken", accessToken, {
           httpOnly: true,
-          secure: false,
+          secure: false, // Zmena na false pre lokálne testovanie
           sameSite: "Strict",
           path: "/"
         });
-
+        
         res.cookie("refreshToken", refreshToken, {
           httpOnly: true,
           secure: false,
-          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dní
+          maxAge: 7 * 24 * 60 * 60 * 1000,
           sameSite: "Strict",
           path: "/"
         });
@@ -164,24 +164,11 @@ app.get("/api/auth-check", authenticateToken, (req, res) => {
   res.status(200).json({ message: "User is authenticated", role: req.user.role });
 });
 
-// GET - Fetch facilities in service
-app.get("/api/facilities", (req, res) => {
-  const query = "SELECT id, name FROM facilities WHERE inService = TRUE";
-  db.query(query, (err, results) => {
-    if (err) {
-      return res.status(500).send("Error fetching facilities");
-    }
-    res.json(results);
-  });
-});
-
 // POST - Create reservation
 app.post("/api/reservations", authenticateToken, (req, res) => {
-  const { user_id, facility, startTime, endTime } = req.body;
+  const { user_id, facility_id, startTime, endTime } = req.body;
 
-  console.log("Prijaté dáta pre rezerváciu:", { user_id, facility, startTime, endTime });
-
-  if (!user_id || !facility || !startTime || !endTime) {
+  if (!user_id || !facility_id || !startTime || !endTime) {
     return res.status(400).send("Chýbajúce alebo nesprávne údaje pre rezerváciu.");
   }
 
@@ -189,7 +176,7 @@ app.post("/api/reservations", authenticateToken, (req, res) => {
     INSERT INTO reservations (user_id, facility_id, startTime, endTime) 
     VALUES (?, ?, ?, ?)
   `;
-  db.query(query, [user_id, facility, startTime, endTime], (err, result) => {
+  db.query(query, [user_id, facility_id, startTime, endTime], (err, result) => {
     if (err) {
       console.error("Chyba pri vkladaní rezervácie:", err);
       return res.status(500).send("Error inserting reservation");
@@ -197,6 +184,7 @@ app.post("/api/reservations", authenticateToken, (req, res) => {
     res.status(201).send({ id: result.insertId });
   });
 });
+
 
 
 // GET - Fetch all reservations
@@ -212,41 +200,280 @@ app.get("/api/reservations", authenticateToken, (req, res) => {
 
 // DELETE - Delete reservation
 app.delete("/api/reservations/:id", authenticateToken, (req, res) => {
+  const reservationId = req.params.id;
+
+  if (!reservationId) {
+    return res.status(400).send("Reservation ID is required.");
+  }
+
   const query = "DELETE FROM reservations WHERE id = ?";
-  db.query(query, [req.params.id], (err, result) => {
+
+  db.query(query, [reservationId], (err, result) => {
     if (err) {
+      console.error("Chyba pri mazaní rezervácie:", err);
       return res.status(500).send("Error deleting reservation");
     }
-    res.status(204).send();
+
+    if (result.affectedRows === 0) {
+      return res.status(404).send("Reservation not found");
+    }
+
+    res.status(200).send("Reservation deleted successfully");
   });
 });
+
 
 // PUT - Update reservation
 app.put("/api/reservations/:id", authenticateToken, (req, res) => {
   try {
-    reservationSchema.parse(req.body);
+    const { user_id, facility_id, startTime, endTime } = req.body;
 
-    const { firstName, lastName, email, phone, facility, startTime, endTime } = req.body;
-    const query = `UPDATE reservations 
-                   SET firstName = ?, lastName = ?, email = ?, phone = ?, facility = ?, startTime = ?, endTime = ? 
-                   WHERE id = ?`;
-    db.query(
-      query,
-      [firstName, lastName, email, phone, facility, startTime, endTime, req.params.id],
-      (err, result) => {
-        if (err) {
-          return res.status(500).send("Error updating reservation");
-        }
-        if (result.affectedRows === 0) {
-          return res.status(404).send("Reservation not found");
-        }
-        res.status(200).send("Reservation updated");
+    if (!user_id || !facility_id || !startTime || !endTime) {
+      return res.status(400).send("Chýbajúce alebo neplatné údaje pre aktualizáciu rezervácie.");
+    }
+
+    const query = `
+      UPDATE reservations 
+      SET user_id = ?, facility_id = ?, startTime = ?, endTime = ? 
+      WHERE id = ?
+    `;
+
+    db.query(query, [user_id, facility_id, startTime, endTime, req.params.id], (err, result) => {
+      if (err) {
+        console.error("Chyba pri aktualizácii rezervácie:", err);
+        return res.status(500).send("Error updating reservation");
       }
-    );
-  } catch (validationError) {
-    res.status(400).json({ errors: validationError.errors });
+
+      if (result.affectedRows === 0) {
+        return res.status(404).send("Reservation not found");
+      }
+
+      res.status(200).send("Reservation updated successfully");
+    });
+  } catch (error) {
+    console.error("Chyba pri validácii alebo aktualizácii rezervácie:", error);
+    res.status(400).json({ error: "Invalid request" });
   }
 });
+
+// POST - Add new user
+app.post("/api/users", authenticateToken, async (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).send("Access denied");
+  }
+
+  const { firstName, lastName, email, phone, password, role } = req.body;
+
+  if (!firstName || !lastName || !email || !phone || !password || !role) {
+    return res.status(400).send("Chýbajúce údaje na vytvorenie používateľa.");
+  }
+
+  try {
+    // Hashovanie hesla
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const query = "INSERT INTO users (firstName, lastName, email, phone, password, role) VALUES (?, ?, ?, ?, ?, ?)";
+    db.query(query, [firstName, lastName, email, phone, hashedPassword, role], (err, result) => {
+      if (err) {
+        console.error("Chyba pri vkladaní používateľa:", err);
+        return res.status(500).send("Error creating user");
+      }
+      res.status(201).send("User created successfully");
+    });
+  } catch (error) {
+    console.error("Chyba pri hashovaní hesla:", error);
+    res.status(500).send("Error hashing password");
+  }
+});
+
+// PUT - Update user (with password option)
+app.put("/api/users/:id", authenticateToken, async (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).send("Access denied");
+  }
+
+  const { firstName, lastName, email, phone, role, password } = req.body;
+  let updateQuery = "UPDATE users SET firstName = ?, lastName = ?, email = ?, phone = ?, role = ?";
+  const queryParams = [firstName, lastName, email, phone, role];
+
+  try {
+    // Ak je poskytnuté nové heslo, hashujeme ho a pridáme do update query
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      updateQuery += ", password = ?";
+      queryParams.push(hashedPassword);
+    }
+    updateQuery += " WHERE id = ?";
+    queryParams.push(req.params.id);
+
+    db.query(updateQuery, queryParams, (err, result) => {
+      if (err) {
+        console.error("Chyba pri aktualizácii používateľa:", err);
+        return res.status(500).send("Error updating user");
+      }
+      res.send("User updated successfully");
+    });
+  } catch (error) {
+    console.error("Chyba pri hashovaní hesla:", error);
+    res.status(500).send("Error hashing password");
+  }
+});
+
+// POST - Add new user
+app.post("/api/users", authenticateToken, async (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).send("Access denied");
+  }
+
+  const { firstName, lastName, email, phone, password, role } = req.body;
+
+  if (!firstName || !lastName || !email || !phone || !password || !role) {
+    return res.status(400).send("Chýbajúce údaje na vytvorenie používateľa.");
+  }
+
+  try {
+    // Hashovanie hesla
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const query = "INSERT INTO users (firstName, lastName, email, phone, password, role) VALUES (?, ?, ?, ?, ?, ?)";
+    db.query(query, [firstName, lastName, email, phone, hashedPassword, role], (err, result) => {
+      if (err) {
+        console.error("Chyba pri vkladaní používateľa:", err);
+        return res.status(500).send("Error creating user");
+      }
+      res.status(201).send("User created successfully");
+    });
+  } catch (error) {
+    console.error("Chyba pri hashovaní hesla:", error);
+    res.status(500).send("Error hashing password");
+  }
+});
+
+// GET - Zobrazenie všetkých používateľov
+app.get("/api/users", authenticateToken, (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).send("Access denied");
+  }
+  db.query("SELECT id, firstName, lastName, email, phone, role FROM users", (err, results) => {
+    if (err) {
+      return res.status(500).send("Error fetching users");
+    }
+    res.json(results);
+  });
+});
+
+// PUT - Aktualizácia používateľa
+app.put("/api/users/:id", authenticateToken, async (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).send("Access denied");
+  }
+
+  const { firstName, lastName, email, phone, role, password } = req.body;
+  let updateQuery = "UPDATE users SET firstName = ?, lastName = ?, email = ?, phone = ?, role = ?";
+  const queryParams = [firstName, lastName, email, phone, role];
+
+  try {
+    // Ak je poskytnuté nové heslo, hashujeme ho a pridáme do update query
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      updateQuery += ", password = ?";
+      queryParams.push(hashedPassword);
+    }
+    updateQuery += " WHERE id = ?";
+    queryParams.push(req.params.id);
+
+    db.query(updateQuery, queryParams, (err, result) => {
+      if (err) {
+        console.error("Chyba pri aktualizácii používateľa:", err);
+        return res.status(500).send("Error updating user");
+      }
+      res.send("User updated successfully");
+    });
+  } catch (error) {
+    console.error("Chyba pri hashovaní hesla:", error);
+    res.status(500).send("Error hashing password");
+  }
+});
+
+
+// DELETE - Zmazanie používateľa
+app.delete("/api/users/:id", authenticateToken, (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).send("Access denied");
+  }
+  db.query("DELETE FROM users WHERE id = ?", [req.params.id], (err) => {
+    if (err) {
+      return res.status(500).send("Error deleting user");
+    }
+    res.send("User deleted successfully");
+  });
+});
+
+// GET - Fetch facilities in service (pre Reservation.jsx)
+app.get("/api/facilities/in-service", (req, res) => {
+  const query = "SELECT id, name FROM facilities WHERE inService = TRUE";
+  db.query(query, (err, results) => {
+    if (err) {
+      return res.status(500).send("Error fetching in-service facilities");
+    }
+    res.json(results);
+  });
+});
+
+// GET - Zobrazenie všetkých zariadení
+app.get("/api/facilities", authenticateToken, (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).send("Access denied");
+  }
+  db.query("SELECT * FROM facilities", (err, results) => {
+    if (err) {
+      return res.status(500).send("Error fetching facilities");
+    }
+    res.json(results);
+  });
+});
+
+// POST - Pridanie zariadenia
+app.post("/api/facilities", authenticateToken, (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).send("Access denied");
+  }
+  const { name, inService } = req.body;
+  db.query("INSERT INTO facilities (name, inService) VALUES (?, ?)", [name, inService], (err) => {
+    if (err) {
+      return res.status(500).send("Error adding facility");
+    }
+    res.send("Facility added successfully");
+  });
+});
+
+// PUT - Aktualizácia zariadenia
+app.put("/api/facilities/:id", authenticateToken, (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).send("Access denied");
+  }
+  const { name, inService } = req.body;
+  db.query("UPDATE facilities SET name = ?, inService = ? WHERE id = ?", [name, inService, req.params.id], (err) => {
+    if (err) {
+      return res.status(500).send("Error updating facility");
+    }
+    res.send("Facility updated successfully");
+  });
+});
+
+// DELETE - Zmazanie zariadenia
+app.delete("/api/facilities/:id", authenticateToken, (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).send("Access denied");
+  }
+  db.query("DELETE FROM facilities WHERE id = ?", [req.params.id], (err) => {
+    if (err) {
+      return res.status(500).send("Error deleting facility");
+    }
+    res.send("Facility deleted successfully");
+  });
+});
+
 
 // POST - Refresh token
 app.post("/api/refresh-token", (req, res) => {
@@ -256,30 +483,39 @@ app.post("/api/refresh-token", (req, res) => {
     return res.status(403).send("Refresh token missing");
   }
 
-  jwt.verify(refreshToken, process.env.JWT_SECRET, (err, user) => {
-    if (err) {
+  // Overíme, či je refresh token v databáze
+  const query = "SELECT * FROM user_tokens WHERE refreshToken = ?";
+  db.query(query, [refreshToken], (err, results) => {
+    if (err || results.length === 0) {
       return res.status(403).send("Invalid refresh token");
     }
 
-    const newAccessToken = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "10s" }
-    );
+    jwt.verify(refreshToken, process.env.JWT_SECRET, (err, user) => {
+      if (err) {
+        return res.status(403).send("Invalid refresh token");
+      }
 
-    // Uloženie nového access tokenu do cookies
-    res.cookie("accessToken", newAccessToken, {
-      httpOnly: true,
-      secure: false,
-      sameSite: "Strict",
-    });
+      const newAccessToken = jwt.sign(
+        { id: user.id, email: user.email, role: user.role },
+        process.env.JWT_SECRET,
+        { expiresIn: "10m" }
+      );
 
-    res.status(200).send({
-      message: "Access token refreshed",
-      accessToken: newAccessToken,
+      // Uloženie nového access tokenu do cookies
+      res.cookie("accessToken", newAccessToken, {
+        httpOnly: true,
+        secure: false,
+        sameSite: "Strict",
+      });
+
+      res.status(200).send({
+        message: "Access token refreshed",
+        accessToken: newAccessToken,
+      });
     });
   });
 });
+
 
 // POST - Logout
 app.post("/api/logout", (req, res) => {
