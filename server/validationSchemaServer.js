@@ -67,4 +67,10 @@ const registerSchema = z
     path: ["confirmPassword"],
   });
 
-module.exports = { reservationSchema, registerSchema };
+  const loginSchema = z
+  .object({
+    email: z.string().email("Neplatný email"),
+    password: z.string().min(5, "Heslo musí mať aspoň 5 znakov"),
+  })
+
+module.exports = { reservationSchema, registerSchema, loginSchema };

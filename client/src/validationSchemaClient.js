@@ -66,3 +66,9 @@ export const reservationSchema = z
     message: "Heslá sa musia zhodovať",
     path: ["confirmPassword"],
   });
+
+  export const loginSchema = z
+  .object({
+    email: z.string().email("Neplatný email"),
+    password: z.string().min(5, "Heslo musí mať aspoň 5 znakov"),
+  })

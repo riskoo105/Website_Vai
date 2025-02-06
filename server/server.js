@@ -9,7 +9,7 @@ const cookieParser = require("cookie-parser");
 const axios = require('axios');
 const multer = require("multer");
 const path = require("path");
-const { reservationSchema, registerSchema } = require("./validationSchemaServer");
+const { reservationSchema, registerSchema, loginSchema } = require("./validationSchemaServer");
 
 app.use(cors({
   origin: "http://localhost:5173", // URL vašho frontendu
@@ -85,9 +85,11 @@ app.post("/api/register", async (req, res) => {
   }
 });
 
-// POST - Login (prihlásenie používateľa)
+// POST - Login (prihlásenie používateľa) -----------------------------------------------------------------------------------------------------------------------------------
 app.post("/api/login", async (req, res) => {
   try {
+    loginSchema.parse(req.body);
+
     const { email, password } = req.body;
 
     const query = "SELECT * FROM users WHERE email = ?";
@@ -104,10 +106,10 @@ app.post("/api/login", async (req, res) => {
 
       // Generujeme access a refresh token
       const payload = { id: user.id, email: user.email, role: user.role };
-      const accessToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "10m" });
+      const accessToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "1h" });
       const refreshToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "7d" });
 
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // Expirácia access tokenu
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // Expirácia access tokenu
       const insertQuery = `
         INSERT INTO user_tokens (user_id, accessToken, refreshToken, expiresAt)
         VALUES (?, ?, ?, ?)
@@ -141,8 +143,8 @@ app.post("/api/login", async (req, res) => {
         });
       });
     });
-  } catch (error) {
-    res.status(500).send("Error during login");
+  } catch (validationError) {
+    res.status(400).json({ errors: validationError.errors });
   }
 });
 
