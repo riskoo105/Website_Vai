@@ -466,6 +466,26 @@ app.get("/api/users", authenticateToken, (req, res) => {
   });
 });
 
+app.get("/api/user-reservations", authenticateToken, (req, res) => {
+  const userId = req.user.id;
+
+  const query = `
+    SELECT id, facility_id, startTime, endTime 
+    FROM reservations 
+    WHERE user_id = ? 
+    ORDER BY startTime DESC
+  `;
+  
+  db.query(query, [userId], (err, results) => {
+    if (err) {
+      console.error("Chyba pri načítaní rezervácií:", err);
+      return res.status(500).send("Chyba pri načítaní rezervácií");
+    }
+    res.json(results);
+  });
+});
+
+
 // DELETE - Zmazanie používateľa
 app.delete("/api/users/:id", authenticateToken, (req, res) => {
   if (req.user.role !== "admin") {
