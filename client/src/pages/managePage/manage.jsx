@@ -127,12 +127,16 @@ export default function Manage() {
 
   const renderTableHeaders = () => {
     if (data.length === 0) return null;
+    const keysToExclude = ["createdAt", "updatedAt"];
+  
     return (
       <thead>
         <tr>
-          {Object.keys(data[0]).map((key) => (
-            <th key={key}>{key}</th>
-          ))}
+          {Object.keys(data[0])
+            .filter((key) => !keysToExclude.includes(key))
+            .map((key) => (
+              <th key={key}>{key}</th>
+            ))}
           <th>Akcie</th>
         </tr>
       </thead>
@@ -219,15 +223,38 @@ export default function Manage() {
     }
   };
 
+  const formatDate = (dateString) => {
+    const options = {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    };
+    return new Date(dateString).toLocaleDateString("sk-SK", options);
+  };
+
   const renderTableRows = () => {
     if (data.length === 0) return null;
+    const keysToExclude = ["createdAt", "updatedAt"];
+  
     return (
       <tbody>
         {data.map((item) => (
           <tr key={item.id}>
-            {Object.entries(item).map(([key, value], index) => (
-              <td key={index}>{key === "inService" ? (value ? "Áno" : "Nie") : String(value)}</td>
-            ))}
+            {Object.entries(item)
+              .filter(([key]) => !keysToExclude.includes(key))
+              .map(([key, value], index) => (
+                <td key={index}>
+                  {key === "startTime" || key === "endTime"
+                    ? formatDate(value)
+                    : key === "inService"
+                    ? value
+                      ? "Áno"
+                      : "Nie"
+                    : String(value)}
+                </td>
+              ))}
             <td>
               <button onClick={() => handleEdit(item)}>Upraviť</button>
               <button onClick={() => handleDelete(item.id)}>Zmazať</button>
