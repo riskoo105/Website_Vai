@@ -1,30 +1,29 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-
+import { facilitySchema, reservationManageSchema, userSchema } from "../../validationSchemaClient";
 
 export default function Manage() {
   const [selectedTable, setSelectedTable] = useState("reservations");
   const [data, setData] = useState([]);
-  const [facilities, setFacilities] = useState([]);  // Pridanie zariadení
-  const [users, setUsers] = useState([]);  // Stav pre priezviská používateľov
+  const [facilities, setFacilities] = useState([]);
+  const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [formData, setFormData] = useState({});
   const [isCreating, setIsCreating] = useState(false);
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     fetchData();
-    fetchFacilities();  // Načítanie zariadení
-    fetchUsers();  // Načítanie priezvisk
+    fetchFacilities();
+    fetchUsers();
   }, [selectedTable]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`http://localhost:8080/api/${selectedTable}`, {
-        withCredentials: true,
-      });
+      const response = await axios.get(`http://localhost:8080/api/${selectedTable}`, { withCredentials: true });
       setData(response.data);
     } catch (error) {
       console.error("Chyba pri načítaní údajov:", error);
@@ -36,9 +35,7 @@ export default function Manage() {
 
   const fetchFacilities = async () => {
     try {
-      const response = await axios.get("http://localhost:8080/api/facilities", {
-        withCredentials: true,
-      });
+      const response = await axios.get("http://localhost:8080/api/facilities", { withCredentials: true });
       setFacilities(response.data);
     } catch (error) {
       console.error("Chyba pri načítaní zariadení:", error);
@@ -47,15 +44,12 @@ export default function Manage() {
 
   const fetchUsers = async () => {
     try {
-      const response = await axios.get("http://localhost:8080/api/users", {
-        withCredentials: true,
-      });
+      const response = await axios.get("http://localhost:8080/api/users", { withCredentials: true });
       setUsers(response.data);
     } catch (error) {
       console.error("Chyba pri načítaní používateľov:", error);
     }
   };
-  
 
   const handleTableChange = (e) => {
     setSelectedTable(e.target.value);
@@ -67,11 +61,13 @@ export default function Manage() {
     setIsEditing(true);
     setEditItem(item);
     setFormData(item);
+    setErrors({});
   };
 
   const handleCreate = () => {
     setIsCreating(true);
     setFormData({});
+    setErrors({});
   };
 
   const handleFormChange = (e) => {
@@ -82,25 +78,44 @@ export default function Manage() {
     }));
   };
 
+  const validateForm = () => {
+    try {
+      switch (selectedTable) {
+        case "facilities":
+          facilitySchema.parse(formData);
+          break;
+        case "reservations":
+          reservationManageSchema.parse(formData);
+          break;
+        case "users":
+          userSchema.parse(formData);
+          break;
+        default:
+          throw new Error("Neznáma tabuľka.");
+      }
+      setErrors({});
+      return true;
+    } catch (validationError) {
+      const errorMap = validationError.errors.reduce((acc, curr) => {
+        acc[curr.path[0]] = curr.message;
+        return acc;
+      }, {});
+      setErrors(errorMap);
+      return false;
+    }
+  };
+
   const handleFormSubmit = async (e) => {
     e.preventDefault();
 
-    if (selectedTable === "reservations" && !formData.facility_id) {
-      alert("Prosím, vyberte zariadenie pre rezerváciu.");
-      return;
-    }
+    if (!validateForm()) return;
 
     try {
-      const payload = {
-        ...formData,
-        facility_id: Number(formData.facility_id),  // Uistíme sa, že posielame číslo
-      };
-      
       if (isCreating) {
-        await axios.post(`http://localhost:8080/api/${selectedTable}`, payload, { withCredentials: true });
+        await axios.post(`http://localhost:8080/api/${selectedTable}`, formData, { withCredentials: true });
         alert("Záznam bol úspešne vytvorený.");
       } else {
-        await axios.put(`http://localhost:8080/api/${selectedTable}/${editItem.id}`, payload, { withCredentials: true });
+        await axios.put(`http://localhost:8080/api/${selectedTable}/${editItem.id}`, formData, { withCredentials: true });
         alert("Záznam bol úspešne upravený.");
       }
       fetchData();
@@ -114,9 +129,7 @@ export default function Manage() {
   const handleDelete = async (id) => {
     if (window.confirm("Naozaj chcete zmazať tento záznam?")) {
       try {
-        await axios.delete(`http://localhost:8080/api/${selectedTable}/${id}`, {
-          withCredentials: true,
-        });
+        await axios.delete(`http://localhost:8080/api/${selectedTable}/${id}`, { withCredentials: true });
         alert("Záznam bol úspešne zmazaný.");
         fetchData();
       } catch (error) {
@@ -128,7 +141,7 @@ export default function Manage() {
   const renderTableHeaders = () => {
     if (data.length === 0) return null;
     const keysToExclude = ["createdAt", "updatedAt"];
-  
+
     return (
       <thead>
         <tr>
@@ -151,6 +164,7 @@ export default function Manage() {
             <label>
               Názov zariadenia:
               <input type="text" name="name" value={formData.name || ""} onChange={handleFormChange} required />
+              {errors.name && <p className="error">{errors.name}</p>}
             </label>
             <label>
               V prevádzke:
@@ -169,6 +183,7 @@ export default function Manage() {
                   <option key={user.id} value={user.id}>{user.lastName}</option>
                 ))}
               </select>
+              {errors.user_id && <p className="error">{errors.user_id}</p>}
             </label>
             <label>
               Zariadenie:
@@ -178,14 +193,17 @@ export default function Manage() {
                   <option key={facility.id} value={facility.id}>{facility.name}</option>
                 ))}
               </select>
+              {errors.facility_id && <p className="error">{errors.facility_id}</p>}
             </label>
             <label>
               Čas začiatku:
               <input type="datetime-local" name="startTime" value={formData.startTime || ""} onChange={handleFormChange} required />
+              {errors.startTime && <p className="error">{errors.startTime}</p>}
             </label>
             <label>
               Čas konca:
               <input type="datetime-local" name="endTime" value={formData.endTime || ""} onChange={handleFormChange} required />
+              {errors.endTime && <p className="error">{errors.endTime}</p>}
             </label>
           </>
         );
@@ -195,26 +213,32 @@ export default function Manage() {
             <label>
               Meno:
               <input type="text" name="firstName" value={formData.firstName || ""} onChange={handleFormChange} required />
+              {errors.firstName && <p className="error">{errors.firstName}</p>}
             </label>
             <label>
               Priezvisko:
               <input type="text" name="lastName" value={formData.lastName || ""} onChange={handleFormChange} required />
+              {errors.lastName && <p className="error">{errors.lastName}</p>}
             </label>
             <label>
               Email:
               <input type="email" name="email" value={formData.email || ""} onChange={handleFormChange} required />
+              {errors.email && <p className="error">{errors.email}</p>}
             </label>
             <label>
               Telefón:
               <input type="text" name="phone" value={formData.phone || ""} onChange={handleFormChange} required />
+              {errors.phone && <p className="error">{errors.phone}</p>}
             </label>
             <label>
               Heslo:
               <input type="password" name="password" value={formData.password || ""} onChange={handleFormChange} required={isCreating} />
+              {errors.password && <p className="error">{errors.password}</p>}
             </label>
             <label>
               Rola:
               <input type="text" name="role" value={formData.role || ""} onChange={handleFormChange} required />
+              {errors.role && <p className="error">{errors.role}</p>}
             </label>
           </>
         );
@@ -237,7 +261,7 @@ export default function Manage() {
   const renderTableRows = () => {
     if (data.length === 0) return null;
     const keysToExclude = ["createdAt", "updatedAt"];
-  
+
     return (
       <tbody>
         {data.map((item) => (
@@ -246,13 +270,7 @@ export default function Manage() {
               .filter(([key]) => !keysToExclude.includes(key))
               .map(([key, value], index) => (
                 <td key={index}>
-                  {key === "startTime" || key === "endTime"
-                    ? formatDate(value)
-                    : key === "inService"
-                    ? value
-                      ? "Áno"
-                      : "Nie"
-                    : String(value)}
+                  {key === "startTime" || key === "endTime" ? formatDate(value) : String(value)}
                 </td>
               ))}
             <td>
@@ -274,9 +292,9 @@ export default function Manage() {
         <option value="users">Používatelia</option>
         <option value="facilities">Zariadenia</option>
       </select>
-  
+
       <button onClick={handleCreate}>Vytvoriť nový záznam</button>
-  
+
       {isEditing || isCreating ? (
         <form onSubmit={handleFormSubmit}>
           <h3>{isCreating ? "Vytvoriť nový záznam" : "Upraviť záznam"}</h3>
@@ -292,7 +310,7 @@ export default function Manage() {
           </table>
         </div>
       )}
-  
+
       {loading && <p className="loading">Načítavam údaje...</p>}
     </div>
   );
