@@ -181,23 +181,25 @@ app.get("/api/auth-check", authenticateToken, (req, res) => {
 
 // POST - Create reservation
 app.post("/api/reservations", authenticateToken, (req, res) => {
-  const { user_id, facility_id, startTime, endTime } = req.body;
+  try {
+    reservationSchema.parse(req.body);  // Validácia pomocou zod
 
-  if (!user_id || !facility_id || !startTime || !endTime) {
-    return res.status(400).send("Chýbajúce alebo nesprávne údaje pre rezerváciu.");
+    const { user_id, facility_id, startTime, endTime } = req.body;
+
+    const query = `
+      INSERT INTO reservations (user_id, facility_id, startTime, endTime) 
+      VALUES (?, ?, ?, ?)
+    `;
+    db.query(query, [user_id, facility_id, startTime, endTime], (err, result) => {
+      if (err) {
+        console.error("Chyba pri vkladaní rezervácie:", err);
+        return res.status(500).send("Error inserting reservation");
+      }
+      res.status(201).send({ id: result.insertId });
+    });
+  } catch (validationError) {
+    res.status(400).json({ errors: validationError.errors });
   }
-
-  const query = `
-    INSERT INTO reservations (user_id, facility_id, startTime, endTime) 
-    VALUES (?, ?, ?, ?)
-  `;
-  db.query(query, [user_id, facility_id, startTime, endTime], (err, result) => {
-    if (err) {
-      console.error("Chyba pri vkladaní rezervácie:", err);
-      return res.status(500).send("Error inserting reservation");
-    }
-    res.status(201).send({ id: result.insertId });
-  });
 });
 
 

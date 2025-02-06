@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 
+
 export default function Manage() {
   const [selectedTable, setSelectedTable] = useState("reservations");
   const [data, setData] = useState([]);

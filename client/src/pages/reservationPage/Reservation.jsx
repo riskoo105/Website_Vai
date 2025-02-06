@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import Cookies from "js-cookie";
+import { reservationSchema } from "../../validationSchemaClient";
 
 export default function Reservation() {
   const [formData, setFormData] = useState({
@@ -9,6 +10,7 @@ export default function Reservation() {
     endTime: "",
   });
   const [facilities, setFacilities] = useState([]); // Načítané zariadenia
+  const [errors, setErrors] = useState({}); // Chyby validácie
 
   useEffect(() => {
     // Načítanie dostupných zariadení
@@ -31,10 +33,22 @@ export default function Reservation() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrors({});
   
     if (!formData.facility) {
       alert("Prosím, vyberte zariadenie.");
       return;
+    }
+
+    try {
+      reservationSchema.parse(formData);  // Validácia údajov
+    } catch (validationError) {
+      const errorMap = validationError.errors.reduce((acc, curr) => {
+        acc[curr.path[0]] = curr.message;
+        return acc;
+      }, {});
+      setErrors(errorMap);
+      return;  // Zastavíme odoslanie, ak sú chyby
     }
   
     try {
@@ -102,6 +116,7 @@ export default function Reservation() {
               </option>
             ))}
           </select>
+          {errors.facility && <p className="error">{errors.facility}</p>}
 
           <label htmlFor="start-time">Čas začiatku rezervácie:</label>
           <input
@@ -112,6 +127,7 @@ export default function Reservation() {
             onChange={handleChange}
             required
           />
+          {errors.startTime && <p className="error">{errors.startTime}</p>}
 
           <label htmlFor="end-time">Čas konca rezervácie:</label>
           <input
@@ -122,7 +138,8 @@ export default function Reservation() {
             onChange={handleChange}
             required
           />
-
+          {errors.endTime && <p className="error">{errors.endTime}</p>}
+          
           <button type="submit">Rezervovať</button>
         </form>
       </section>

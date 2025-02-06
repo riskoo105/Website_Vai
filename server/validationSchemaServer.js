@@ -2,7 +2,7 @@ const { z } = require("zod");
 
 const reservationSchema = z
   .object({
-    facility: z.string().min(1,"Musíte vybrať zariadenie"),
+    facility_id: z.string().min(1,"Musíte vybrať zariadenie"),
     startTime: z
       .string()
       .min(1,"Čas začiatku je povinný")

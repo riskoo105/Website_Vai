@@ -2,18 +2,6 @@ import { z } from "zod";
 
 export const reservationSchema = z
   .object({
-    firstName: z
-      .string()
-      .min(2, "Meno musí mať aspoň 2 znaky")
-      .max(50, "Meno je príliš dlhé"),
-    lastName: z
-      .string()
-      .min(2, "Priezvisko musí mať aspoň 2 znaky")
-      .max(50, "Priezvisko je príliš dlhé"),
-    email: z.string().email("Neplatný email"),
-    phone: z
-      .string()
-      .regex(/^\d{10}$/, "Telefónne číslo musí obsahovať presne 10 číslic"),
     facility: z.string().nonempty("Musíte vybrať zariadenie"),
     startTime: z
       .string()
