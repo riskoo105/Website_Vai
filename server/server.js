@@ -332,9 +332,6 @@ app.get("/api/profile", authenticateToken, (req, res) => {
   });
 });
 
-
-
-// PUT - profile seetings of user
 // PUT - profile settings of user (without password change)
 app.put("/api/profile", authenticateToken, async (req, res) => {
   const userId = req.user.id; // Take the ID directly from the authenticated user
@@ -357,8 +354,31 @@ app.put("/api/profile", authenticateToken, async (req, res) => {
   }
 });
 
+// PUT - Change password of the user
+app.put("/api/profile/change-password", authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  const { password } = req.body;
 
+  if (!password) {
+    return res.status(400).send("Password is required");
+  }
 
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const query = "UPDATE users SET password = ? WHERE id = ?";
+
+    db.query(query, [hashedPassword, userId], (err) => {
+      if (err) {
+        console.error("Error updating password:", err);
+        return res.status(500).send("Error updating password");
+      }
+      res.send("Password updated successfully");
+    });
+  } catch (error) {
+    console.error("Error hashing password:", error);
+    res.status(500).send("Error processing password update");
+  }
+});
 
 // PUT - Update user (with password option)
 app.put("/api/users/:id", authenticateToken, async (req, res) => {
