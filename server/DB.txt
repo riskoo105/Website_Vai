@@ -1,0 +1,52 @@
+facilities:
++-----------+--------------+------+-----+-------------------+-----------------------------------------------+
+| Field     | Type         | Null | Key | Default           | Extra                                         |
++-----------+--------------+------+-----+-------------------+-----------------------------------------------+
+| id        | int          | NO   | PRI | NULL              | auto_increment                                |
+| name      | varchar(255) | NO   |     | NULL              |                                               |
+| createdAt | timestamp    | YES  |     | CURRENT_TIMESTAMP | DEFAULT_GENERATED                             |
+| updatedAt | timestamp    | YES  |     | CURRENT_TIMESTAMP | DEFAULT_GENERATED on update CURRENT_TIMESTAMP |
+| inService | tinyint(1)   | NO   |     | 1                 |                                               |
++-----------+--------------+------+-----+-------------------+-----------------------------------------------+
+
+reservations:
++-------------+-----------+------+-----+-------------------+-----------------------------------------------+
+| Field       | Type      | Null | Key | Default           | Extra                                         |
++-------------+-----------+------+-----+-------------------+-----------------------------------------------+
+| id          | int       | NO   | PRI | NULL              | auto_increment                                |
+| user_id     | int       | YES  | MUL | NULL              |                                               |
+| facility_id | int       | YES  | MUL | NULL              |                                               |
+| startTime   | datetime  | NO   |     | NULL              |                                               |
+| endTime     | datetime  | NO   |     | NULL              |                                               |
+| createdAt   | timestamp | YES  |     | CURRENT_TIMESTAMP | DEFAULT_GENERATED                             |
+| updatedAt   | timestamp | YES  |     | CURRENT_TIMESTAMP | DEFAULT_GENERATED on update CURRENT_TIMESTAMP |
++-------------+-----------+------+-----+-------------------+-----------------------------------------------+
+
+user_tokens:
++--------------+--------------+------+-----+-------------------+-----------------------------------------------+
+| Field        | Type         | Null | Key | Default           | Extra                                         |
++--------------+--------------+------+-----+-------------------+-----------------------------------------------+
+| id           | int          | NO   | PRI | NULL              | auto_increment                                |
+| user_id      | int          | YES  | MUL | NULL              |                                               |
+| accessToken  | varchar(255) | NO   |     | NULL              |                                               |
+| refreshToken | varchar(255) | NO   |     | NULL              |                                               |
+| expiresAt    | datetime     | NO   |     | NULL              |                                               |
+| createdAt    | timestamp    | YES  |     | CURRENT_TIMESTAMP | DEFAULT_GENERATED                             |
+| updatedAt    | timestamp    | YES  |     | CURRENT_TIMESTAMP | DEFAULT_GENERATED on update CURRENT_TIMESTAMP |
++--------------+--------------+------+-----+-------------------+-----------------------------------------------+
+
+users:
++--------------+----------------------+------+-----+-------------------+-----------------------------------------------+
+| Field        | Type                 | Null | Key | Default           | Extra                                         |
++--------------+----------------------+------+-----+-------------------+-----------------------------------------------+
+| id           | int                  | NO   | PRI | NULL              | auto_increment                                |
+| firstName    | varchar(255)         | NO   |     | NULL              |                                               |
+| lastName     | varchar(255)         | NO   |     | NULL              |                                               |
+| email        | varchar(255)         | NO   | UNI | NULL              |                                               |
+| phone        | varchar(10)          | NO   |     | NULL              |                                               |
+| password     | varchar(255)         | NO   |     | NULL              |                                               |
+| role         | enum('user','admin') | YES  |     | user              |                                               |
+| createdAt    | timestamp            | YES  |     | CURRENT_TIMESTAMP | DEFAULT_GENERATED                             |
+| updatedAt    | timestamp            | YES  |     | CURRENT_TIMESTAMP | DEFAULT_GENERATED on update CURRENT_TIMESTAMP |
+| profileImage | varchar(255)         | YES  |     | NULL              |                                               |
++--------------+----------------------+------+-----+-------------------+-----------------------------------------------+

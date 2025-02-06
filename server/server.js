@@ -9,7 +9,7 @@ const cookieParser = require("cookie-parser");
 const axios = require('axios');
 const multer = require("multer");
 const path = require("path");
-const { reservationSchema, registerSchema, loginSchema, profileUpdateSchema, passwordUpdateSchema } = require("./validationSchemaServer");
+const { reservationSchema, registerSchema, loginSchema, profileUpdateSchema, passwordUpdateSchema, facilitySchema, userSchema } = require("./validationSchemaServer");
 
 app.use(cors({
   origin: "http://localhost:5173", // URL vašho frontendu
@@ -291,19 +291,17 @@ app.put("/api/reservations/:id", authenticateToken, (req, res) => {
   }
 });
 
-// POST - Add new user
+// POST - Add new user --------------------------------------------------------------------------------------------------------------------------
 app.post("/api/users", authenticateToken, async (req, res) => {
   if (req.user.role !== "admin") {
     return res.status(403).send("Access denied");
   }
 
-  const { firstName, lastName, email, phone, password, role } = req.body;
-
-  if (!firstName || !lastName || !email || !phone || !password || !role) {
-    return res.status(400).send("Chýbajúce údaje na vytvorenie používateľa.");
-  }
-
   try {
+    userSchema.parse(req.body);
+
+    const { firstName, lastName, email, phone, password, role } = req.body;
+
     // Hashovanie hesla
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -315,9 +313,9 @@ app.post("/api/users", authenticateToken, async (req, res) => {
       }
       res.status(201).send("User created successfully");
     });
-  } catch (error) {
-    console.error("Chyba pri hashovaní hesla:", error);
-    res.status(500).send("Error hashing password");
+  } catch (validationError) {
+    console.error("Validačná chyba:", validationError.errors);
+    res.status(400).json({ errors: validationError.errors });
   }
 });
 
@@ -526,13 +524,23 @@ app.post("/api/facilities", authenticateToken, (req, res) => {
   if (req.user.role !== "admin") {
     return res.status(403).send("Access denied");
   }
-  const { name, inService } = req.body;
-  db.query("INSERT INTO facilities (name, inService) VALUES (?, ?)", [name, inService], (err) => {
-    if (err) {
-      return res.status(500).send("Error adding facility");
-    }
-    res.send("Facility added successfully");
-  });
+
+  try {
+    facilitySchema.parse(req.body);
+
+    const { name, inService } = req.body;
+    
+    db.query("INSERT INTO facilities (name, inService) VALUES (?, ?)", [name, inService], (err) => {
+      if (err) {
+        console.error("Chyba pri vkladaní zariadenia:", err);
+        return res.status(500).send("Error adding facility");
+      }
+      res.send("Facility added successfully");
+    });
+  } catch (validationError) {
+    console.error("Validačná chyba:", validationError.errors);
+    res.status(400).json({ errors: validationError.errors });
+  }
 });
 
 // PUT - Aktualizácia zariadenia
