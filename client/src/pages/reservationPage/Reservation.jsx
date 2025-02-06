@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-//import { reservationSchema } from "../../validationSchemaClient"; 
 import Cookies from "js-cookie";
 
 export default function Reservation() {
@@ -10,47 +9,12 @@ export default function Reservation() {
     endTime: "",
   });
   const [facilities, setFacilities] = useState([]); // Načítané zariadenia
-  const [errors, setErrors] = useState({});
-  const [userData, setUserData] = useState({});
 
-  // Načítanie prihláseného používateľa
   useEffect(() => {
-    const verifyToken = async () => {
-      let token = Cookies.get("accessToken");
-  
-      if (!token) {
-        console.error("Access token chýba. Pokúšam sa obnoviť...");
-        try {
-          const response = await axios.post("http://localhost:8080/api/refresh-token", {}, { withCredentials: true });
-          token = response.data.accessToken;
-          Cookies.set("accessToken", token, { path: "/" });  // Uložíme nový token
-        } catch (error) {
-          console.error("Chyba pri obnove tokenu:", error);
-          return;
-        }
-      }
-  
-      try {
-        const userInfo = JSON.parse(atob(token.split(".")[1]));
-        console.log("Dekódované údaje používateľa:", userInfo);
-        setUserData({
-          id: userInfo.id,
-          email: userInfo.email,
-        });
-      } catch (error) {
-        console.error("Chyba pri dekódovaní tokenu:", error);
-      }
-    };
-  
-    verifyToken();
-  }, []);
-  
-
-  // Načítanie dostupných zariadení
-  useEffect(() => {
+    // Načítanie dostupných zariadení
     axios.get("http://localhost:8080/api/facilities/in-service")
       .then(response => {
-        setFacilities(response.data); // Načítanie len dostupných zariadení
+        setFacilities(response.data);
       })
       .catch(() => {
         alert("Chyba pri načítavaní zariadení.");
@@ -67,7 +31,7 @@ export default function Reservation() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+  
     if (!formData.facility) {
       alert("Prosím, vyberte zariadenie.");
       return;
@@ -76,18 +40,21 @@ export default function Reservation() {
     try {
       let token = Cookies.get("accessToken");
       if (!token) {
-        console.log("Access token chýba, pokúšam sa obnoviť...");
+        console.error("Access token chýba, pokúšam sa obnoviť...");
         const response = await axios.post("http://localhost:8080/api/refresh-token", {}, { withCredentials: true });
         token = response.data.accessToken;
         Cookies.set("accessToken", token, { path: "/" });
       }
   
-      const userInfo = JSON.parse(atob(token.split(".")[1]));
-      console.log("Dekódované údaje používateľa:", userInfo);
+      // Ensure token is not null before parsing
+      if (!token) {
+        throw new Error("Access token is missing even after refresh.");
+      }
   
+      const userInfo = JSON.parse(atob(token.split(".")[1]));
       console.log("Odosielané údaje pre rezerváciu:", {
         user_id: userInfo.id,
-        facility_id: formData.facility,  // Tu opravujeme, aby sa správne odoslal ID zariadenia
+        facility_id: formData.facility,
         startTime: formData.startTime,
         endTime: formData.endTime,
       });
@@ -96,7 +63,7 @@ export default function Reservation() {
         "http://localhost:8080/api/reservations",
         {
           user_id: userInfo.id,
-          facility: formData.facility,  // Opravená hodnota
+          facility_id: formData.facility,
           startTime: formData.startTime,
           endTime: formData.endTime,
         },
@@ -104,11 +71,7 @@ export default function Reservation() {
       );
   
       alert("Rezervácia úspešne odoslaná!");
-      setFormData({
-        facility: "",
-        startTime: "",
-        endTime: "",
-      });
+      setFormData({ facility: "", startTime: "", endTime: "" });
   
     } catch (error) {
       console.error("Chyba pri odosielaní rezervácie:", error);
@@ -116,26 +79,6 @@ export default function Reservation() {
     }
   };
   
-  
-  
-
-  axios.interceptors.response.use(
-    (response) => response,
-    async (error) => {
-      if (error.response.status === 401 && error.response.data.message === "Invalid token") {
-        try {
-          // Požiadavka na obnovu tokenu
-          await axios.post("http://localhost:8080/api/refresh-token");
-          // Opätovné odoslanie pôvodnej požiadavky
-          return axios(error.config);
-        } catch (refreshError) {
-          console.error("Unable to refresh token:", refreshError);
-          return Promise.reject(refreshError);
-        }
-      }
-      return Promise.reject(error);
-    }
-  );
 
   return (
     <div>
@@ -159,7 +102,6 @@ export default function Reservation() {
               </option>
             ))}
           </select>
-          {errors.facility && <p className="error">{errors.facility}</p>}
 
           <label htmlFor="start-time">Čas začiatku rezervácie:</label>
           <input
@@ -170,7 +112,6 @@ export default function Reservation() {
             onChange={handleChange}
             required
           />
-          {errors.startTime && <p className="error">{errors.startTime}</p>}
 
           <label htmlFor="end-time">Čas konca rezervácie:</label>
           <input
@@ -181,7 +122,6 @@ export default function Reservation() {
             onChange={handleChange}
             required
           />
-          {errors.endTime && <p className="error">{errors.endTime}</p>}
 
           <button type="submit">Rezervovať</button>
         </form>
