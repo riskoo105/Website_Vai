@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useAuth } from "../../AuthContext";
+import { profileSchema, passwordSchema } from "../../validationSchemaClient";
 
 export default function Profile() {
   const { user } = useAuth();
   const [userData, setUserData] = useState({});
+  const [editData, setEditData] = useState({});
   const [isEditing, setIsEditing] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -12,6 +14,7 @@ export default function Profile() {
     newPassword: "",
     confirmPassword: "",
   });
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -20,6 +23,7 @@ export default function Profile() {
           withCredentials: true,
         });
         setUserData(response.data);
+        setEditData(response.data);  // Initialize the form data with fetched user data
       } catch (error) {
         console.error("Chyba pri načítavaní profilu používateľa:", error);
         alert("Chyba pri načítavaní údajov používateľa.");
@@ -30,7 +34,7 @@ export default function Profile() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setUserData((prevData) => ({
+    setEditData((prevData) => ({
       ...prevData,
       [name]: value,
     }));
@@ -56,9 +60,41 @@ export default function Profile() {
     setSelectedFile(e.target.files[0]);
   };
 
-  const handleSaveProfile = async () => {
+  const validateProfile = () => {
     try {
-      await axios.put("http://localhost:8080/api/profile", userData, {
+      profileSchema.parse(editData);
+      setErrors({});
+      return true;
+    } catch (validationError) {
+      const errorMap = {};
+      validationError.errors.forEach((error) => {
+        errorMap[error.path[0]] = error.message;
+      });
+      setErrors(errorMap);
+      return false;
+    }
+  };
+
+  const validatePassword = () => {
+    try {
+      passwordSchema.parse(passwordData);
+      setErrors({});
+      return true;
+    } catch (validationError) {
+      const errorMap = {};
+      validationError.errors.forEach((error) => {
+        errorMap[error.path[0]] = error.message;
+      });
+      setErrors(errorMap);
+      return false;
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!validateProfile()) return;
+
+    try {
+      await axios.put("http://localhost:8080/api/profile", editData, {
         withCredentials: true,
       });
 
@@ -76,13 +112,14 @@ export default function Profile() {
             },
           }
         );
-        setUserData((prevData) => ({
+        setEditData((prevData) => ({
           ...prevData,
           profileImage: imageUploadResponse.data.imageUrl,
         }));
       }
 
       alert("Údaje boli úspešne aktualizované.");
+      setUserData(editData);  // Update the header data only after successful saving
       setIsEditing(false);
     } catch (error) {
       console.error("Chyba pri aktualizácii profilu používateľa:", error);
@@ -91,10 +128,7 @@ export default function Profile() {
   };
 
   const handleSavePassword = async () => {
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert("Nové heslo sa nezhoduje s potvrdením hesla.");
-      return;
-    }
+    if (!validatePassword()) return;
 
     try {
       await axios.put(
@@ -150,10 +184,11 @@ export default function Profile() {
               <input
                 type="text"
                 name="firstName"
-                value={userData.firstName}
+                value={editData.firstName}
                 onChange={handleChange}
                 required
               />
+              {errors.firstName && <p className="error">{errors.firstName}</p>}
             </div>
 
             <div className="input-group">
@@ -161,10 +196,11 @@ export default function Profile() {
               <input
                 type="text"
                 name="lastName"
-                value={userData.lastName}
+                value={editData.lastName}
                 onChange={handleChange}
                 required
               />
+              {errors.lastName && <p className="error">{errors.lastName}</p>}
             </div>
 
             <div className="input-group">
@@ -172,10 +208,11 @@ export default function Profile() {
               <input
                 type="email"
                 name="email"
-                value={userData.email}
+                value={editData.email}
                 onChange={handleChange}
                 required
               />
+              {errors.email && <p className="error">{errors.email}</p>}
             </div>
 
             <div className="input-group">
@@ -183,10 +220,11 @@ export default function Profile() {
               <input
                 type="tel"
                 name="phone"
-                value={userData.phone}
+                value={editData.phone}
                 onChange={handleChange}
                 required
               />
+              {errors.phone && <p className="error">{errors.phone}</p>}
             </div>
 
             <div className="profile-buttons">
@@ -212,6 +250,7 @@ export default function Profile() {
                 onChange={handlePasswordChange}
                 required
               />
+              {errors.newPassword && <p className="error">{errors.newPassword}</p>}
             </div>
 
             <div className="input-group">
@@ -223,6 +262,7 @@ export default function Profile() {
                 onChange={handlePasswordChange}
                 required
               />
+              {errors.confirmPassword && <p className="error">{errors.confirmPassword}</p>}
             </div>
 
             <div className="profile-buttons">

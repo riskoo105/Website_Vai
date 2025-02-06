@@ -25,7 +25,6 @@ export default function Register() {
     e.preventDefault();
     setErrors({});
 
-    // Validácia pomocou zod schémy
     try {
       registerSchema.parse(formData);
     } catch (validationError) {
