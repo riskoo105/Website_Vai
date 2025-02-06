@@ -9,7 +9,7 @@ const cookieParser = require("cookie-parser");
 const axios = require('axios');
 const multer = require("multer");
 const path = require("path");
-const { reservationSchema, registerSchema, loginSchema } = require("./validationSchemaServer");
+const { reservationSchema, registerSchema, loginSchema, profileUpdateSchema, passwordUpdateSchema } = require("./validationSchemaServer");
 
 app.use(cors({
   origin: "http://localhost:5173", // URL vašho frontendu
@@ -51,7 +51,6 @@ const upload = multer({ storage: storage });
 // POST - Register a new user ---------------------------------------------------------------------------------------------------------------------------------------------------
 app.post("/api/register", async (req, res) => {
   try {
-    // Validácia pomocou schémy
     registerSchema.parse(req.body);
 
     const { firstName, lastName, email, phone, password } = req.body;
@@ -187,7 +186,7 @@ app.get("/api/auth-check", authenticateToken, (req, res) => {
 // POST - Create reservation --------------------------------------------------------------------------------------------------------------------------------------------------
 app.post("/api/reservations", authenticateToken, (req, res) => {
   try {
-    reservationSchema.parse(req.body);  // Validácia pomocou zod
+    reservationSchema.parse(req.body);
 
     const { user_id, facility_id, startTime, endTime } = req.body;
 
@@ -353,51 +352,50 @@ app.get("/api/profile", authenticateToken, (req, res) => {
   });
 });
 
-// PUT - profile settings of user (without password change)
-app.put("/api/profile", authenticateToken, async (req, res) => {
-  const userId = req.user.id; // Take the ID directly from the authenticated user
-  
-  const { firstName, lastName, email, phone } = req.body;
-  const updateQuery = "UPDATE users SET firstName = ?, lastName = ?, email = ?, phone = ? WHERE id = ?";
-  const queryParams = [firstName, lastName, email, phone, userId];
-
+// PUT - profile settings of user (without password change) ------------------------------------------------------------------------------------------------------------
+app.put("/api/profile", authenticateToken, (req, res) => {
   try {
+    profileUpdateSchema.parse(req.body);
+
+    const userId = req.user.id;
+    const { firstName, lastName, email, phone } = req.body;
+
+    const updateQuery = "UPDATE users SET firstName = ?, lastName = ?, email = ?, phone = ? WHERE id = ?";
+    const queryParams = [firstName, lastName, email, phone, userId];
+
     db.query(updateQuery, queryParams, (err) => {
       if (err) {
-        console.error("Error updating profile:", err);
-        return res.status(500).send("Error updating profile");
+        console.error("Chyba pri aktualizácii profilu:", err);
+        return res.status(500).send("Chyba pri aktualizácii profilu");
       }
-      res.send("Profile updated successfully");
+      res.send("Údaje boli úspešne aktualizované");
     });
-  } catch (error) {
-    console.error("Error processing profile update:", error);
-    res.status(500).send("Error processing profile update");
+  } catch (validationError) {
+    console.error("Validačná chyba:", validationError.errors);
+    res.status(400).json({ errors: validationError.errors });
   }
 });
 
-// PUT - Change password of the user
+// PUT - Change password of the user ------------------------------------------------------------------------------------------------------------------------------
 app.put("/api/profile/change-password", authenticateToken, async (req, res) => {
-  const userId = req.user.id;
-  const { password } = req.body;
-
-  if (!password) {
-    return res.status(400).send("Password is required");
-  }
-
   try {
+    passwordUpdateSchema.parse(req.body); 
+    const userId = req.user.id;
+    const { password } = req.body;
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const query = "UPDATE users SET password = ? WHERE id = ?";
 
     db.query(query, [hashedPassword, userId], (err) => {
       if (err) {
-        console.error("Error updating password:", err);
-        return res.status(500).send("Error updating password");
+        console.error("Chyba pri aktualizácii hesla:", err);
+        return res.status(500).send("Chyba pri aktualizácii hesla");
       }
-      res.send("Password updated successfully");
+      res.send("Heslo bolo úspešne aktualizované");
     });
-  } catch (error) {
-    console.error("Error hashing password:", error);
-    res.status(500).send("Error processing password update");
+  } catch (validationError) {
+    console.error("Validačná chyba:", validationError.errors);
+    res.status(400).json({ errors: validationError.errors });
   }
 });
 
