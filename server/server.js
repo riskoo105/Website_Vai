@@ -335,38 +335,29 @@ app.get("/api/profile", authenticateToken, (req, res) => {
 
 
 // PUT - profile seetings of user
-app.put("/api/profile/:id", authenticateToken, async (req, res) => {
-  // Overíme, že používateľ mení iba svoje vlastné údaje
-  if (req.user.id !== parseInt(req.params.id)) {
-    return res.status(403).send("Access denied");
-  }
-
-  const { firstName, lastName, email, phone, password } = req.body;
-  let updateQuery = "UPDATE users SET firstName = ?, lastName = ?, email = ?, phone = ?";
-  const queryParams = [firstName, lastName, email, phone];
+// PUT - profile settings of user (without password change)
+app.put("/api/profile", authenticateToken, async (req, res) => {
+  const userId = req.user.id; // Take the ID directly from the authenticated user
+  
+  const { firstName, lastName, email, phone } = req.body;
+  const updateQuery = "UPDATE users SET firstName = ?, lastName = ?, email = ?, phone = ? WHERE id = ?";
+  const queryParams = [firstName, lastName, email, phone, userId];
 
   try {
-    // Ak je poskytnuté nové heslo, hashujeme ho a pridáme do update query
-    if (password) {
-      const hashedPassword = await bcrypt.hash(password, 10);
-      updateQuery += ", password = ?";
-      queryParams.push(hashedPassword);
-    }
-    updateQuery += " WHERE id = ?";
-    queryParams.push(req.params.id);
-
-    db.query(updateQuery, queryParams, (err, result) => {
+    db.query(updateQuery, queryParams, (err) => {
       if (err) {
-        console.error("Chyba pri aktualizácii profilu:", err);
+        console.error("Error updating profile:", err);
         return res.status(500).send("Error updating profile");
       }
       res.send("Profile updated successfully");
     });
   } catch (error) {
-    console.error("Chyba pri hashovaní hesla:", error);
-    res.status(500).send("Error hashing password");
+    console.error("Error processing profile update:", error);
+    res.status(500).send("Error processing profile update");
   }
 });
+
+
 
 
 // PUT - Update user (with password option)
