@@ -14,6 +14,7 @@ export default function Header() {
           {user ? (
             <>
               <li><NavLink to="/reservation">Rezervácia</NavLink></li>
+              <li><NavLink to="/profile">Profil</NavLink></li>
               {user.role === "admin" && <li><NavLink to="/manage">Správa</NavLink></li>}
               <li><button onClick={logout}>Odhlásiť sa</button></li>
             </>

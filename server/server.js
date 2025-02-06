@@ -7,6 +7,8 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const cookieParser = require("cookie-parser");
 const axios = require('axios');
+const multer = require("multer");
+const path = require("path");
 //const { reservationSchema } = require("./validationSchemaServer");
 
 app.use(cors({
@@ -15,6 +17,7 @@ app.use(cors({
 }));
 app.use(bodyParser.json());
 app.use(cookieParser()); // Pre prácu s cookies
+app.use("/uploads", express.static("uploads"));
 
 require("dotenv").config();
 
@@ -32,6 +35,18 @@ db.connect((err) => {
     console.log("Connected to the database.");
   }
 });
+
+// Nastavenie úložiska súborov
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "uploads/");  // Súbory sa budú ukladať do priečinka "uploads"
+  },
+  filename: function (req, file, cb) {
+    cb(null, `${req.user.id}_${Date.now()}${path.extname(file.originalname)}`);
+  }
+});
+
+const upload = multer({ storage: storage });
 
 // POST - Register a new user
 app.post("/api/register", async (req, res) => {
@@ -286,6 +301,74 @@ app.post("/api/users", authenticateToken, async (req, res) => {
   }
 });
 
+// Endpoint na nahrávanie profilovej fotky
+app.post("/api/upload-profile-image", authenticateToken, upload.single("profileImage"), (req, res) => {
+  const imageUrl = `/uploads/${req.file.filename}`;
+
+  const query = "UPDATE users SET profileImage = ? WHERE id = ?";
+  db.query(query, [imageUrl, req.user.id], (err) => {
+    if (err) {
+      console.error("Chyba pri ukladaní profilovej fotky:", err);
+      return res.status(500).send("Error updating profile image");
+    }
+    res.status(200).json({ imageUrl });
+  });
+});
+
+// Získanie aj s fotkou údajov
+app.get("/api/profile", authenticateToken, (req, res) => {
+  const userId = req.user.id; // Získame ID aktuálneho používateľa z tokenu
+
+  const query = "SELECT firstName, lastName, email, phone, profileImage FROM users WHERE id = ?";
+  db.query(query, [userId], (err, results) => {
+    if (err) {
+      console.error("Chyba pri načítavaní profilu:", err);
+      return res.status(500).send("Chyba servera");
+    }
+    if (results.length === 0) {
+      return res.status(404).send("Používateľ neexistuje");
+    }
+    res.json(results[0]);
+  });
+});
+
+
+
+// PUT - profile seetings of user
+app.put("/api/profile/:id", authenticateToken, async (req, res) => {
+  // Overíme, že používateľ mení iba svoje vlastné údaje
+  if (req.user.id !== parseInt(req.params.id)) {
+    return res.status(403).send("Access denied");
+  }
+
+  const { firstName, lastName, email, phone, password } = req.body;
+  let updateQuery = "UPDATE users SET firstName = ?, lastName = ?, email = ?, phone = ?";
+  const queryParams = [firstName, lastName, email, phone];
+
+  try {
+    // Ak je poskytnuté nové heslo, hashujeme ho a pridáme do update query
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      updateQuery += ", password = ?";
+      queryParams.push(hashedPassword);
+    }
+    updateQuery += " WHERE id = ?";
+    queryParams.push(req.params.id);
+
+    db.query(updateQuery, queryParams, (err, result) => {
+      if (err) {
+        console.error("Chyba pri aktualizácii profilu:", err);
+        return res.status(500).send("Error updating profile");
+      }
+      res.send("Profile updated successfully");
+    });
+  } catch (error) {
+    console.error("Chyba pri hashovaní hesla:", error);
+    res.status(500).send("Error hashing password");
+  }
+});
+
+
 // PUT - Update user (with password option)
 app.put("/api/users/:id", authenticateToken, async (req, res) => {
   if (req.user.role !== "admin") {
@@ -317,6 +400,25 @@ app.put("/api/users/:id", authenticateToken, async (req, res) => {
     console.error("Chyba pri hashovaní hesla:", error);
     res.status(500).send("Error hashing password");
   }
+});
+
+// GET - získanie konkrétneho používateľa
+app.get("/api/users/:id", authenticateToken, (req, res) => {
+  const userId = req.params.id;
+
+  const query = "SELECT id, firstName, lastName, email, phone FROM users WHERE id = ?";
+  db.query(query, [userId], (err, results) => {
+    if (err) {
+      console.error("Chyba pri získavaní používateľa:", err);
+      return res.status(500).send("Chyba servera");
+    }
+
+    if (results.length === 0) {
+      return res.status(404).send("Používateľ nebol nájdený");
+    }
+
+    res.status(200).json(results[0]);
+  });
 });
 
 // GET - Zobrazenie všetkých používateľov

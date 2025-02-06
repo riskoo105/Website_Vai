@@ -10,6 +10,7 @@ import Login from './pages/loginPage/Login.jsx';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import AuthGuard from './AuthGuard.jsx';
 import { AuthProvider } from './AuthContext.jsx'; 
+import Profile from './pages/profilePage/Profile.jsx';
 
 function Layout({ children }) {
   return (
@@ -32,6 +33,7 @@ export default function App() {
           <Route path="/facilities" element={<Layout><Facilities /></Layout>} />
           {/* Protected routes */}
           <Route path="/reservation" element={<AuthGuard><Layout><Reservation /></Layout></AuthGuard>} />
+          <Route path="/profile" element={<AuthGuard><Layout><Profile /></Layout></AuthGuard>} />
           <Route path="/manage" element={<AuthGuard roles={["admin"]}><Layout><Manage /></Layout></AuthGuard>} />
         </Routes>
       </BrowserRouter>
