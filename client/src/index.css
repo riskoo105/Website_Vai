@@ -480,6 +480,102 @@ input[type="file"]:hover {
   color: #666;
 }
 
+.manage-container {
+  max-width: 800px;
+  margin: 50px auto;
+  padding: 20px;
+  background-color: #f4f4f4;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.manage-container h2 {
+  text-align: center;
+  font-size: 2rem;
+  color: #333;
+}
+
+#table-select {
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+}
+
+.manage-container button {
+  padding: 10px 15px;
+  margin: 5px;
+  border: none;
+  border-radius: 5px;
+  background-color: #f39c10;
+  color: white;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.manage-container button:hover {
+  background-color: #d3780c;
+}
+
+.table-container {
+  overflow-x: auto;
+  margin-top: 20px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 10px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+th {
+  background-color: #f39c10;
+  color: white;
+}
+
+tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background-color: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+form label {
+  font-weight: bold;
+}
+
+form input, form select {
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 1rem;
+}
+
+form button {
+  width: fit-content;
+  padding: 10px 15px;
+}
+
+.loading {
+  text-align: center;
+  font-style: italic;
+  color: #666;
+}
+
+
 /* Responzívny dizajn pre 768px - tablety */
 @media (max-width: 768px) {
 

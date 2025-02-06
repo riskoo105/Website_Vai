@@ -239,7 +239,7 @@ export default function Manage() {
   };
 
   return (
-    <div>
+    <div className="manage-container">
       <h2>Správa údajov</h2>
       <label htmlFor="table-select">Vyber tabuľku:</label>
       <select id="table-select" value={selectedTable} onChange={handleTableChange}>
@@ -247,9 +247,9 @@ export default function Manage() {
         <option value="users">Používatelia</option>
         <option value="facilities">Zariadenia</option>
       </select>
-
+  
       <button onClick={handleCreate}>Vytvoriť nový záznam</button>
-
+  
       {isEditing || isCreating ? (
         <form onSubmit={handleFormSubmit}>
           <h3>{isCreating ? "Vytvoriť nový záznam" : "Upraviť záznam"}</h3>
@@ -258,13 +258,15 @@ export default function Manage() {
           <button type="button" onClick={() => { setIsEditing(false); setIsCreating(false); }}>Zrušiť</button>
         </form>
       ) : (
-        <table border="1">
-          {renderTableHeaders()}
-          {renderTableRows()}
-        </table>
+        <div className="table-container">
+          <table>
+            {renderTableHeaders()}
+            {renderTableRows()}
+          </table>
+        </div>
       )}
-
-      {loading && <p>Načítavam údaje...</p>}
+  
+      {loading && <p className="loading">Načítavam údaje...</p>}
     </div>
   );
 }
