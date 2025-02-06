@@ -2,29 +2,17 @@ const { z } = require("zod");
 
 const reservationSchema = z
   .object({
-    firstName: z
-      .string()
-      .min(2, "Meno musí mať aspoň 2 znaky")
-      .max(50, "Meno je príliš dlhé"),
-    lastName: z
-      .string()
-      .min(2, "Priezvisko musí mať aspoň 2 znaky")
-      .max(50, "Priezvisko je príliš dlhé"),
-    email: z.string().email("Neplatný email"),
-    phone: z
-      .string()
-      .regex(/^\d{10}$/, "Telefónne číslo musí obsahovať presne 10 číslic"),
-    facility: z.string().nonempty("Musíte vybrať zariadenie"), // depricated pozrieť
+    facility: z.string().min(1,"Musíte vybrať zariadenie"),
     startTime: z
       .string()
-      .nonempty("Čas začiatku je povinný")
+      .min(1,"Čas začiatku je povinný")
       .refine((startTime) => new Date(startTime) >= new Date(), {
         message: "Čas začiatku nemôže byť v minulosti",
         path: ["startTime"],
       }),
       endTime: z
       .string()
-      .nonempty("Čas konca je povinný")
+      .min(1,"Čas konca je povinný")
       .refine((endTime, ctx) => new Date(endTime) >= new Date(), {
         message: "Čas konca nemôže byť v minulosti",
         path: ["endTime"],

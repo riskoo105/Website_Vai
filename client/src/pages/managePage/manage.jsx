@@ -5,6 +5,7 @@ export default function Manage() {
   const [selectedTable, setSelectedTable] = useState("reservations");
   const [data, setData] = useState([]);
   const [facilities, setFacilities] = useState([]);  // Pridanie zariadení
+  const [users, setUsers] = useState([]);  // Stav pre priezviská používateľov
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editItem, setEditItem] = useState(null);
@@ -14,6 +15,7 @@ export default function Manage() {
   useEffect(() => {
     fetchData();
     fetchFacilities();  // Načítanie zariadení
+    fetchUsers();  // Načítanie priezvisk
   }, [selectedTable]);
 
   const fetchData = async () => {
@@ -41,6 +43,18 @@ export default function Manage() {
       console.error("Chyba pri načítaní zariadení:", error);
     }
   };
+
+  const fetchUsers = async () => {
+    try {
+      const response = await axios.get("http://localhost:8080/api/users", {
+        withCredentials: true,
+      });
+      setUsers(response.data);
+    } catch (error) {
+      console.error("Chyba pri načítaní používateľov:", error);
+    }
+  };
+  
 
   const handleTableChange = (e) => {
     setSelectedTable(e.target.value);
@@ -143,8 +157,13 @@ export default function Manage() {
         return (
           <>
             <label>
-              Používateľ ID:
-              <input type="number" name="user_id" value={formData.user_id || ""} onChange={handleFormChange} required />
+              Používateľ:
+              <select name="user_id" value={formData.user_id || ""} onChange={handleFormChange} required>
+                <option value="" disabled>Vyberte používateľa</option>
+                {users.map((user) => (
+                  <option key={user.id} value={user.id}>{user.lastName}</option>
+                ))}
+              </select>
             </label>
             <label>
               Zariadenie:

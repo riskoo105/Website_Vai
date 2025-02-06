@@ -9,7 +9,7 @@ const cookieParser = require("cookie-parser");
 const axios = require('axios');
 const multer = require("multer");
 const path = require("path");
-//const { reservationSchema } = require("./validationSchemaServer");
+const { reservationSchema } = require("./validationSchemaServer");
 
 app.use(cors({
   origin: "http://localhost:5173", // URL vašho frontendu
@@ -204,7 +204,17 @@ app.post("/api/reservations", authenticateToken, (req, res) => {
 
 // GET - Fetch all reservations
 app.get("/api/reservations", authenticateToken, (req, res) => {
-  const query = "SELECT * FROM reservations";
+  const query = `
+    SELECT 
+      reservations.id,
+      users.lastName AS user_lastName,
+      facilities.name AS facility_name,
+      reservations.startTime,
+      reservations.endTime
+    FROM reservations
+    JOIN users ON reservations.user_id = users.id
+    JOIN facilities ON reservations.facility_id = facilities.id;
+  `;
   db.query(query, (err, results) => {
     if (err) {
       return res.status(500).send("Error fetching reservations");
