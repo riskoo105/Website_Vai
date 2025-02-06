@@ -1,0 +1,20 @@
+[
+    {
+      "id": 1,
+      "name": "Futbalové ihrisk",
+      "description": "Rezervujte si jedno z našich moderných futbalových ihrísk s umelou trávou.",
+      "image": "/football.jpg"
+    },
+    {
+      "id": 2,
+      "name": "Tenisové kurty",
+      "description": "Vychutnajte si tenis na našich kvalitných kurtoch s osvetlením.",
+      "image": "/tennis.jpg"
+    },
+    {
+      "id": 3,
+      "name": "Basketbalové ihriská",
+      "description": "Skvelé basketbalové ihriská pre amatérov aj profesionálov.",
+      "image": "/basketball.jpg"
+    }
+  ]

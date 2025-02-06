@@ -319,36 +319,6 @@ app.put("/api/users/:id", authenticateToken, async (req, res) => {
   }
 });
 
-// POST - Add new user
-app.post("/api/users", authenticateToken, async (req, res) => {
-  if (req.user.role !== "admin") {
-    return res.status(403).send("Access denied");
-  }
-
-  const { firstName, lastName, email, phone, password, role } = req.body;
-
-  if (!firstName || !lastName || !email || !phone || !password || !role) {
-    return res.status(400).send("Chýbajúce údaje na vytvorenie používateľa.");
-  }
-
-  try {
-    // Hashovanie hesla
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const query = "INSERT INTO users (firstName, lastName, email, phone, password, role) VALUES (?, ?, ?, ?, ?, ?)";
-    db.query(query, [firstName, lastName, email, phone, hashedPassword, role], (err, result) => {
-      if (err) {
-        console.error("Chyba pri vkladaní používateľa:", err);
-        return res.status(500).send("Error creating user");
-      }
-      res.status(201).send("User created successfully");
-    });
-  } catch (error) {
-    console.error("Chyba pri hashovaní hesla:", error);
-    res.status(500).send("Error hashing password");
-  }
-});
-
 // GET - Zobrazenie všetkých používateľov
 app.get("/api/users", authenticateToken, (req, res) => {
   if (req.user.role !== "admin") {
@@ -361,40 +331,6 @@ app.get("/api/users", authenticateToken, (req, res) => {
     res.json(results);
   });
 });
-
-// PUT - Aktualizácia používateľa
-app.put("/api/users/:id", authenticateToken, async (req, res) => {
-  if (req.user.role !== "admin") {
-    return res.status(403).send("Access denied");
-  }
-
-  const { firstName, lastName, email, phone, role, password } = req.body;
-  let updateQuery = "UPDATE users SET firstName = ?, lastName = ?, email = ?, phone = ?, role = ?";
-  const queryParams = [firstName, lastName, email, phone, role];
-
-  try {
-    // Ak je poskytnuté nové heslo, hashujeme ho a pridáme do update query
-    if (password) {
-      const hashedPassword = await bcrypt.hash(password, 10);
-      updateQuery += ", password = ?";
-      queryParams.push(hashedPassword);
-    }
-    updateQuery += " WHERE id = ?";
-    queryParams.push(req.params.id);
-
-    db.query(updateQuery, queryParams, (err, result) => {
-      if (err) {
-        console.error("Chyba pri aktualizácii používateľa:", err);
-        return res.status(500).send("Error updating user");
-      }
-      res.send("User updated successfully");
-    });
-  } catch (error) {
-    console.error("Chyba pri hashovaní hesla:", error);
-    res.status(500).send("Error hashing password");
-  }
-});
-
 
 // DELETE - Zmazanie používateľa
 app.delete("/api/users/:id", authenticateToken, (req, res) => {
