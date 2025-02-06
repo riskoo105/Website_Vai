@@ -9,7 +9,7 @@ const cookieParser = require("cookie-parser");
 const axios = require('axios');
 const multer = require("multer");
 const path = require("path");
-const { reservationSchema } = require("./validationSchemaServer");
+const { reservationSchema, registerSchema } = require("./validationSchemaServer");
 
 app.use(cors({
   origin: "http://localhost:5173", // URL vašho frontendu
@@ -48,9 +48,12 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-// POST - Register a new user
+// POST - Register a new user ---------------------------------------------------------------------------------------------------------------------------------------------------
 app.post("/api/register", async (req, res) => {
   try {
+    // Validácia pomocou schémy
+    registerSchema.parse(req.body);
+
     const { firstName, lastName, email, phone, password } = req.body;
 
     const checkUserQuery = "SELECT * FROM users WHERE email = ?";
@@ -77,8 +80,8 @@ app.post("/api/register", async (req, res) => {
         }
       );
     });
-  } catch (error) {
-    res.status(500).send("Error during registration");
+  } catch (validationError) {
+    res.status(400).json({ errors: validationError.errors });
   }
 });
 
@@ -179,7 +182,7 @@ app.get("/api/auth-check", authenticateToken, (req, res) => {
   res.status(200).json({ message: "User is authenticated", role: req.user.role });
 });
 
-// POST - Create reservation ----------------------------------------------------------------------------------------
+// POST - Create reservation --------------------------------------------------------------------------------------------------------------------------------------------------
 app.post("/api/reservations", authenticateToken, (req, res) => {
   try {
     reservationSchema.parse(req.body);  // Validácia pomocou zod

@@ -37,4 +37,34 @@ const reservationSchema = z
     }
   );
 
-module.exports = { reservationSchema };
+const registerSchema = z
+  .object({
+    firstName: z
+      .string()
+      .min(2, "Meno musí mať aspoň 2 znaky")
+      .max(50, "Meno je príliš dlhé")
+      .refine((name) => /^[A-Z]/.test(name), {
+        message: "Meno musí začínať veľkým písmenom",
+      }),
+    lastName: z
+      .string()
+      .min(2, "Priezvisko musí mať aspoň 2 znaky")
+      .max(50, "Priezvisko je príliš dlhé")
+      .refine((name) => /^[A-Z]/.test(name), {
+        message: "Priezvisko musí začínať veľkým písmenom",
+      }),
+    email: z.string().email("Neplatný email"),
+    phone: z
+      .string()
+      .regex(/^\d{10}$/, "Telefónne číslo musí obsahovať presne 10 číslic"),
+    password: z
+      .string()
+      .min(5, "Heslo musí mať aspoň 5 znakov"),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Heslá sa musia zhodovať",
+    path: ["confirmPassword"],
+  });
+
+module.exports = { reservationSchema, registerSchema };
